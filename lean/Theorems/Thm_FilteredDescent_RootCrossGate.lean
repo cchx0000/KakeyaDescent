@@ -125,12 +125,12 @@ theorem treeLCA_singleton_ne {n : ℕ} {t t' : Fin n} (hne : t ≠ t') :
   unfold treeLCA
   rw [hmax0, List.take_zero]
 
-/-- H3 ⇒ Hgeom: the sticky Kakeya input implies the geometric bound for a
+/-- H2 ⇒ Hgeom: the planar Córdoba input implies the geometric bound for a
 GateStage built directly from the tube family (trivial tree, one leaf per
-tube, load = shading).  For such a stage, `Xgeom` is exactly the tube-pair
-sum controlled by `StickyInput`. -/
-theorem stickyInput_to_Hgeom {n : ℕ} (G : GateStage (Fin n) n 1)
-    (h3 : StickyInput G.shadeVol G.unionVol G.multiplicity)
+tube, load = shading).  `PlanarInput` has the same pair-incidence shape
+as `StickyInput`/`Marked4DInput`, so the proof is identical. -/
+theorem planarInput_to_Hgeom {n : ℕ} (G : GateStage (Fin n) n 1)
+    (h2 : PlanarInput G.shadeVol G.unionVol)
     (htree : G.tree = {[]} ∪ Finset.univ.image (fun t : Fin n => [t]))
     (hterm : ∀ t : Fin n, G.termTube [t] = t)
     (hload : ∀ t : Fin n, ∀ δ : ℝ, G.load [t] δ = G.shadeVol t δ)
@@ -179,12 +179,77 @@ theorem stickyInput_to_Hgeom {n : ℕ} (G : GateStage (Fin n) n 1)
     intro δ
     rw [hleaves, Finset.sum_image hinjOn]
     refine Finset.sum_congr rfl fun t _ => hload t δ
-  -- Apply StickyInput (second component: pair-incidence bound)
-  -- Unfold StickyInput to extract the pair-incidence bound
-  simp only [StickyInput] at h3
-  obtain ⟨_, hpair⟩ := h3
+  -- Apply PlanarInput (the pair-incidence bound)
+  simp only [PlanarInput] at h2
   intro ε hε
-  obtain ⟨C, hC, hCbound⟩ := hpair ε hε
+  obtain ⟨C, hC, hCbound⟩ := h2 ε hε
+  refine ⟨C, hC, fun δ hδ0 hδ1 => ?_⟩
+  have e1 := hCbound δ hδ0 hδ1
+  have hgoal : Xgeom G.tree (fun γ => G.load γ δ) G.termTube
+      ≤ C * δ ^ (-ε) * (G.unionVol δ * ∑ γ ∈ treeLeaves G.tree, G.load γ δ) := by
+    rw [hXgeom_eq δ, hsum_eq δ]
+    simpa using e1
+  simpa using hgoal
+
+/-- H3 ⇒ Hgeom: the sticky Kakeya input implies the geometric bound for a
+GateStage built directly from the tube family (trivial tree, one leaf per
+tube, load = shading).  For such a stage, `Xgeom` is exactly the tube-pair
+sum controlled by `StickyInput`. -/
+theorem stickyInput_to_Hgeom {n : ℕ} (G : GateStage (Fin n) n 1)
+    (h3 : StickyInput G.shadeVol G.unionVol)
+    (htree : G.tree = {[]} ∪ Finset.univ.image (fun t : Fin n => [t]))
+    (hterm : ∀ t : Fin n, G.termTube [t] = t)
+    (hload : ∀ t : Fin n, ∀ δ : ℝ, G.load [t] δ = G.shadeVol t δ)
+    (hleaves : treeLeaves G.tree = Finset.univ.image (fun t : Fin n => [t])) :
+    SubpowerLE (fun δ => Xgeom G.tree (fun γ => G.load γ δ) G.termTube)
+      (fun δ => G.unionVol δ * ∑ γ ∈ treeLeaves G.tree, G.load γ δ) := by
+  -- The map t ↦ [t] is injective
+  have hinj : Function.Injective (fun t : Fin n => [t]) := by
+    intro t₁ t₂ h
+    simp at h
+    exact h
+  have hinjOn : Set.InjOn (fun t : Fin n => [t]) (↑(Finset.univ : Finset (Fin n)) : Set (Fin n)) :=
+    hinj.injOn
+  -- Reindex Xgeom: for the trivial tree, LCA([t],[t']) = [] iff t ≠ t'
+  have hXgeom_eq : ∀ δ : ℝ,
+      Xgeom G.tree (fun γ => G.load γ δ) G.termTube
+        = ∑ t : Fin n, ∑ t' : Fin n,
+            if t ≠ t' then G.shadeVol t δ * G.shadeVol t' δ else 0 := by
+    intro δ
+    have h1 : Xgeom G.tree (fun γ => G.load γ δ) G.termTube
+        = ∑ t : Fin n, ∑ γ' ∈ treeLeaves G.tree,
+            if treeLCA [t] γ' = [] ∧ G.termTube [t] ≠ G.termTube γ'
+            then G.load [t] δ * G.load γ' δ else 0 := by
+      simp only [Xgeom, hleaves]
+      rw [Finset.sum_image hinjOn]
+    rw [h1]
+    refine Finset.sum_congr rfl fun t _ => ?_
+    have h2 : (∑ γ' ∈ treeLeaves G.tree,
+            if treeLCA [t] γ' = [] ∧ G.termTube [t] ≠ G.termTube γ'
+            then G.load [t] δ * G.load γ' δ else 0)
+        = ∑ t' : Fin n,
+            if t ≠ t' then G.shadeVol t δ * G.shadeVol t' δ else 0 := by
+      rw [hleaves, Finset.sum_image hinjOn]
+      refine Finset.sum_congr rfl fun t' _ => ?_
+      by_cases hne : t ≠ t'
+      · have hlca := treeLCA_singleton_ne hne
+        simp [hlca, hterm t, hterm t', hne, hload t δ, hload t' δ]
+      · push_neg at hne
+        subst hne
+        have hlca := treeLCA_singleton_self t
+        simp [hlca]
+    rw [h2]
+  -- Reindex ∑ loads
+  have hsum_eq : ∀ δ : ℝ,
+      ∑ γ ∈ treeLeaves G.tree, G.load γ δ = ∑ t : Fin n, G.shadeVol t δ := by
+    intro δ
+    rw [hleaves, Finset.sum_image hinjOn]
+    refine Finset.sum_congr rfl fun t _ => hload t δ
+  -- Apply StickyInput (the pair-incidence bound)
+  -- Unfold StickyInput to get the pair-incidence bound directly
+  simp only [StickyInput] at h3
+  intro ε hε
+  obtain ⟨C, hC, hCbound⟩ := h3 ε hε
   refine ⟨C, hC, fun δ hδ0 hδ1 => ?_⟩
   have e1 := hCbound δ hδ0 hδ1
   -- Rewrite the goal using the reindexing lemmas
@@ -198,7 +263,7 @@ theorem stickyInput_to_Hgeom {n : ℕ} (G : GateStage (Fin n) n 1)
 
 /-- H4 ⇒ Hgeom: same as above for the marked 4D input. -/
 theorem marked4DInput_to_Hgeom {n : ℕ} (G : GateStage (Fin n) n 1)
-    (h4 : Marked4DInput G.shadeVol G.unionVol G.multiplicity)
+    (h4 : Marked4DInput G.shadeVol G.unionVol)
     (htree : G.tree = {[]} ∪ Finset.univ.image (fun t : Fin n => [t]))
     (hterm : ∀ t : Fin n, G.termTube [t] = t)
     (hload : ∀ t : Fin n, ∀ δ : ℝ, G.load [t] δ = G.shadeVol t δ)
@@ -245,11 +310,10 @@ theorem marked4DInput_to_Hgeom {n : ℕ} (G : GateStage (Fin n) n 1)
     intro δ
     rw [hleaves, Finset.sum_image hinjOn]
     refine Finset.sum_congr rfl fun t _ => hload t δ
-  -- Apply Marked4DInput (second component: pair-incidence bound)
+  -- Apply Marked4DInput (the pair-incidence bound)
   simp only [Marked4DInput] at h4
-  obtain ⟨_, hpair⟩ := h4
   intro ε hε
-  obtain ⟨C, hC, hCbound⟩ := hpair ε hε
+  obtain ⟨C, hC, hCbound⟩ := h4 ε hε
   refine ⟨C, hC, fun δ hδ0 hδ1 => ?_⟩
   have e1 := hCbound δ hδ0 hδ1
   have hgoal : Xgeom G.tree (fun γ => G.load γ δ) G.termTube
@@ -261,9 +325,9 @@ theorem marked4DInput_to_Hgeom {n : ℕ} (G : GateStage (Fin n) n 1)
 theorem root_cross_gate {α : Type} [DecidableEq α] {n m : ℕ}
     (d : ℕ) (hd : d = 2 ∨ d = 3 ∨ d = 4)
     (G : GateStage α n m)
-    (Kpr : ℝ → ℝ) (H2 : d = 2 → PlanarInput Kpr)
-    (H3 : d = 3 → StickyInput G.shadeVol G.unionVol G.multiplicity)
-    (H4 : d = 4 → Marked4DInput G.shadeVol G.unionVol G.multiplicity)
+    (H2 : d = 2 → PlanarInput G.shadeVol G.unionVol)
+    (H3 : d = 3 → StickyInput G.shadeVol G.unionVol)
+    (H4 : d = 4 → Marked4DInput G.shadeVol G.unionVol)
     (Hdup :
       SubpowerLE (fun δ => Xdup G.tree (fun γ => G.load γ δ) G.termTube)
         (fun δ => G.Bpred δ * ∑ γ ∈ treeLeaves G.tree, G.load γ δ))

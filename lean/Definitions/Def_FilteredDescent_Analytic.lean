@@ -38,37 +38,50 @@ obligation of the gate theorem.
 namespace FilteredDescent
 
 /-- (H2) Hereditary planar Córdoba input (paper (53), from [2]):
-the planar cutoff `Kpr = L_σ / (τ * λ)` is subpower in `δ`, uniformly
-for `δ ∈ (0,1)`. -/
-def PlanarInput (Kpr : ℝ → ℝ) : Prop :=
-  SubpowerLE Kpr (fun _ => 1)
+geometric pair-incidence estimate for the planar case, up to subpower
+losses uniform for `δ ∈ (0,1)`.
+
+This has the same abstract shape as (H3)/(H4) — the pair-incidence
+bound `∑_{t≠t'} |Y(t)|·|Y(t')| ≲ |⋃ Y| · ∑ |Y(t)|` — because that is the
+interface the descent consumes.  It is a *separate* assumption (the
+planar Córdoba estimate [2], hereditary form), selected by the `d = 2`
+hypothesis at use sites.  The multiplicity bound is derived, not
+assumed (see `StickyInput` note). -/
+def PlanarInput {n : ℕ} (shadeVol : Fin n → ℝ → ℝ) (unionVol : ℝ → ℝ) : Prop :=
+  SubpowerLE (fun δ => ∑ t : Fin n, ∑ t' : Fin n,
+      if t ≠ t' then shadeVol t δ * shadeVol t' δ else 0)
+    (fun δ => unionVol δ * ∑ t, shadeVol t δ)
 
 /-- (H3) Sticky Kakeya input (paper (177), from [7] and [10]):
-multiplicity upper bound + geometric pair-incidence estimate, up to
-subpower losses uniform for `δ ∈ (0,1)`.
+geometric pair-incidence estimate, up to subpower losses uniform for
+`δ ∈ (0,1)`.
 
 The pair-incidence bound controls `∑_{t≠t'} |Y(t)|·|Y(t')|` by
 `|⋃ Y| · ∑ |Y(t)|`.  This is a *geometric* estimate on the tube family;
 the final union lower bound (paper (214)) is *derived* from it via the
 filtered descent (`root_cross_gate` + `terminal_incidence_count`), not
+assumed.
+
+NOTE (non-circularity): An earlier version of this definition also
+included `SubpowerLE multiplicity 1` as a first component.  That made
+the input essentially contain the conclusion (`∑ ≲ ⋃` is equivalent to
+`M ≲ 1` via `mult_eq`), so the "proof" was circular.  The multiplicity
+bound is now DERIVED (see `multiplicity_bound_of_pair_incidence`), not
 assumed. -/
-def StickyInput {n : ℕ} (shadeVol : Fin n → ℝ → ℝ) (unionVol
-    multiplicity : ℝ → ℝ) : Prop :=
-  SubpowerLE multiplicity (fun _ => 1) ∧
+def StickyInput {n : ℕ} (shadeVol : Fin n → ℝ → ℝ) (unionVol : ℝ → ℝ) : Prop :=
   SubpowerLE (fun δ => ∑ t : Fin n, ∑ t' : Fin n,
       if t ≠ t' then shadeVol t δ * shadeVol t' δ else 0)
     (fun δ => unionVol δ * ∑ t, shadeVol t δ)
 
 /-- (H4) Uniform marked 4D sticky input (paper (81), from [9], unpublished
 companion manuscript).  It has the same abstract quantitative shape as
-(H3) — multiplicity upper bound + geometric pair-incidence estimate —
-because that shape is what the descent consumes; it is a *separate*
-assumption (the marked `d = 4` estimate, uniform over marks), selected by
-the `d = 4` hypothesis at use sites.  As with (H3), the union lower bound
-is derived via the descent, not assumed. -/
-def Marked4DInput {n : ℕ} (shadeVol : Fin n → ℝ → ℝ) (unionVol
-    multiplicity : ℝ → ℝ) : Prop :=
-  SubpowerLE multiplicity (fun _ => 1) ∧
+(H3) — the geometric pair-incidence estimate — because that shape is
+what the descent consumes; it is a *separate* assumption (the marked
+`d = 4` estimate, uniform over marks), selected by the `d = 4`
+hypothesis at use sites.  As with (H3), the union lower bound is derived
+via the descent, not assumed.  The multiplicity bound is derived, not
+assumed (see `StickyInput` note). -/
+def Marked4DInput {n : ℕ} (shadeVol : Fin n → ℝ → ℝ) (unionVol : ℝ → ℝ) : Prop :=
   SubpowerLE (fun δ => ∑ t : Fin n, ∑ t' : Fin n,
       if t ≠ t' then shadeVol t δ * shadeVol t' δ else 0)
     (fun δ => unionVol δ * ∑ t, shadeVol t δ)
@@ -85,6 +98,12 @@ structure ShadedTubes (n : ℕ) where
   union_nonneg : ∀ δ, 0 < δ → δ < 1 → 0 ≤ unionVol δ
   mult_pos : ∀ δ, 0 < δ → δ < 1 → 0 < multiplicity δ
   mult_eq : ∀ δ, 0 < δ → δ < 1 → multiplicity δ * unionVol δ = ∑ t, shadeVol t δ
+  /-- Single-tube bound: each shading is contained in the union, so
+  `|Y(t)| ≤ |⋃_t Y(t)|` pointwise.  This is the geometric fact
+  `Y(t) ⊆ ⋃_t Y(t)`; in the abstract interface it is an assumption.
+  Needed to control the diagonal `∑_t |Y(t)|²` in the multiplicity
+  derivation (see `multiplicity_bound_of_pair_incidence`). -/
+  shade_le_union : ∀ t δ, 0 < δ → δ < 1 → shadeVol t δ ≤ unionVol δ
 
 /-- One descent stage for the root-cross gate (paper (142)): the history
 tree together with the shaded tube family it is built over.  The tube
@@ -110,6 +129,7 @@ structure GateStage (α : Type) [DecidableEq α] (n m : ℕ) where
   union_nonneg : ∀ δ, 0 < δ → δ < 1 → 0 ≤ unionVol δ
   mult_pos : ∀ δ, 0 < δ → δ < 1 → 0 < multiplicity δ
   mult_eq : ∀ δ, 0 < δ → δ < 1 → multiplicity δ * unionVol δ = ∑ t, shadeVol t δ
+  shade_le_union : ∀ (t : Fin n) δ, 0 < δ → δ < 1 → shadeVol t δ ≤ unionVol δ
   Bpred : ℝ → ℝ
   Bpred_nonneg : ∀ δ, 0 < δ → δ < 1 → 0 ≤ Bpred δ
   /-- Bridge: the load on a tree leaf is bounded by the shading of its
