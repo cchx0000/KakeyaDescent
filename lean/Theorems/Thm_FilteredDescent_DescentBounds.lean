@@ -85,6 +85,17 @@ theorem leafConf_length (w : List (DMark n B)) :
       | cartan => simp [leafConf, confCount, ih]
       | select t => simp [leafConf, confCount, ih]
 
+/-- `leafConf` distributes over append. -/
+theorem leafConf_append (l₁ l₂ : List (DMark n B)) :
+    leafConf (l₁ ++ l₂) = leafConf l₁ ++ leafConf l₂ := by
+  induction l₁ with
+  | nil => simp [leafConf]
+  | cons x xs ih =>
+      cases x with
+      | conf b => simp [leafConf, ih]
+      | cartan => simp [leafConf, ih]
+      | select t => simp [leafConf, ih]
+
 /-- `leaf_bound` for the constructed tree: the leaf load is bounded by
 `unionVol`.  Proof: `sv(t)/M ≤ sv(t) ≤ unionVol` using `M ≥ 1` and
 `shade_le_union`. -/
