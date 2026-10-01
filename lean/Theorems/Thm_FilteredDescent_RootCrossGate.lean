@@ -35,20 +35,6 @@ is built over (tubes indexed by the shared `Fin n`).
 
 namespace FilteredDescent
 
-/-- `SubpowerLE` is closed under addition of the dominated quantity. -/
-theorem SubpowerLE.add {x₁ x₂ y : ℝ → ℝ}
-    (h₁ : SubpowerLE x₁ y) (h₂ : SubpowerLE x₂ y) :
-    SubpowerLE (fun δ => x₁ δ + x₂ δ) y := by
-  intro ε hε
-  obtain ⟨C₁, hC₁, hC₁b⟩ := h₁ ε hε
-  obtain ⟨C₂, hC₂, hC₂b⟩ := h₂ ε hε
-  refine ⟨C₁ + C₂, by linarith, fun δ hδ0 hδ1 => ?_⟩
-  have e1 := hC₁b δ hδ0 hδ1
-  have e2 := hC₂b δ hδ0 hδ1
-  calc x₁ δ + x₂ δ ≤ C₁ * δ ^ (-ε) * y δ + C₂ * δ ^ (-ε) * y δ :=
-        add_le_add e1 e2
-    _ = (C₁ + C₂) * δ ^ (-ε) * y δ := by ring
-
 /-- LCA of a singleton with itself. -/
 theorem treeLCA_singleton_self {n : ℕ} (t : Fin n) :
     treeLCA ([t] : List (Fin n)) [t] = [t] := by
@@ -331,8 +317,13 @@ theorem root_cross_gate {α : Type} [DecidableEq α] {n m : ℕ}
       · simp [hlca, htube]
       · simp [hlca, htube]
     · simp [hlca]
-  -- Combine the two SubpowerLE bounds by additivity
-  have hadd := SubpowerLE.add Hgeom Hdup
+  -- Combine the two SubpowerLE bounds by additivity: the general
+  -- `SubpowerLE.add` doubles the right-hand side, absorbed by `of_double`.
+  have hy : ∀ δ : ℝ, 0 < δ → δ < 1 →
+      0 ≤ G.Bpred δ * ∑ γ ∈ treeLeaves G.tree, G.load γ δ :=
+    fun δ hδ0 hδ1 => mul_nonneg (G.Bpred_nonneg δ hδ0 hδ1)
+      (Finset.sum_nonneg fun γ hγ => G.hload γ hγ δ hδ0 hδ1)
+  have hadd := SubpowerLE.of_double (SubpowerLE.add Hgeom Hdup hy hy)
   -- Rewrite Xroot as the sum and apply
   have heq : (fun δ => Xroot G.tree (fun γ => G.load γ δ))
       = (fun δ => Xgeom G.tree (fun γ => G.load γ δ) G.termTube

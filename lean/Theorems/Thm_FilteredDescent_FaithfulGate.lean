@@ -37,40 +37,6 @@ Assembles the faithful root-cross gate from its three pieces:
 
 namespace FilteredDescent
 
-/-- Subpower domination respects sums. -/
-theorem SubpowerLE.add {x₁ x₂ y₁ y₂ : ℝ → ℝ}
-    (h₁ : SubpowerLE x₁ y₁) (h₂ : SubpowerLE x₂ y₂)
-    (hy₁ : ∀ δ : ℝ, 0 < δ → δ < 1 → 0 ≤ y₁ δ)
-    (hy₂ : ∀ δ : ℝ, 0 < δ → δ < 1 → 0 ≤ y₂ δ) :
-    SubpowerLE (fun δ => x₁ δ + x₂ δ) (fun δ => y₁ δ + y₂ δ) := by
-  intro ε hε
-  obtain ⟨C₁, hC₁, hb₁⟩ := h₁ ε hε
-  obtain ⟨C₂, hC₂, hb₂⟩ := h₂ ε hε
-  refine ⟨C₁ + C₂, add_nonneg hC₁ hC₂, fun δ hδ0 hδ1 => ?_⟩
-  have h1 := hb₁ δ hδ0 hδ1
-  have h2 := hb₂ δ hδ0 hδ1
-  have hy1 := hy₁ δ hδ0 hδ1
-  have hy2 := hy₂ δ hδ0 hδ1
-  have hpow : 0 ≤ δ ^ (-ε) := le_of_lt (Real.rpow_pos_of_pos hδ0 _)
-  calc x₁ δ + x₂ δ
-      ≤ (C₁ * δ ^ (-ε) * y₁ δ) + (C₂ * δ ^ (-ε) * y₂ δ) :=
-        add_le_add h1 h2
-    _ ≤ (C₁ + C₂) * δ ^ (-ε) * (y₁ δ + y₂ δ) := by
-        have e : (C₁ + C₂) * δ ^ (-ε) * (y₁ δ + y₂ δ)
-            - ((C₁ * δ ^ (-ε) * y₁ δ) + (C₂ * δ ^ (-ε) * y₂ δ))
-            = C₁ * δ ^ (-ε) * y₂ δ + C₂ * δ ^ (-ε) * y₁ δ := by ring
-        linarith [mul_nonneg (mul_nonneg hC₁ hpow) hy2,
-          mul_nonneg (mul_nonneg hC₂ hpow) hy1]
-
-/-- Absorb a doubled bound into the subpower constant. -/
-theorem SubpowerLE.of_double {x y : ℝ → ℝ}
-    (h : SubpowerLE x (fun δ => y δ + y δ)) : SubpowerLE x y := by
-  intro ε hε
-  obtain ⟨C, hC, hb⟩ := h ε hε
-  refine ⟨2 * C, by linarith, fun δ hδ0 hδ1 => ?_⟩
-  calc x δ ≤ C * δ ^ (-ε) * (y δ + y δ) := hb δ hδ0 hδ1
-    _ = (2 * C) * δ ^ (-ε) * y δ := by ring
-
 /-- Paper (144): the root-cross mass splits by terminal tube. -/
 theorem Xroot_split {α : Type} [DecidableEq α] (T : Finset (List α))
     (u : List α → ℝ) {n : ℕ} (termTube : List α → Fin n) :
