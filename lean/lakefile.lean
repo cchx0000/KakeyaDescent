@@ -11,5 +11,6 @@ require mathlib from git
 lean_lib «Definitions» where
   globs := #[.submodules `Definitions]
 
+@[default_target]
 lean_lib «Theorems» where
   globs := #[.submodules `Theorems]
