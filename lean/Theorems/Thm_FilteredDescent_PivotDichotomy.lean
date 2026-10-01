@@ -18,11 +18,11 @@ either every pivot is broad (`κ^2 ≤ p_j^2`), in which case
 
 namespace FilteredDescent
 
-theorem pivot_dichotomy {r : ℕ} (hr : 0 < r)
+theorem pivot_dichotomy {r : ℕ}
     (s : Fin r → (Fin r → ℝ))
     (hpos :
       ∀ k : Fin (r + 1), 0 < (gramTake s k.val (Nat.le_of_lt_succ k.isLt)).det)
-    (κ : ℝ) (hκ : 0 < κ) :
+    (κ : ℝ) :
     (∏ j : Fin r, pivotSq s j)
         = (Matrix.det (Matrix.of (fun a b : Fin r => s b a))) ^ 2 ∧
       ((∀ j : Fin r, κ ^ 2 ≤ pivotSq s j) ∨

@@ -75,7 +75,7 @@ private lemma AB_eq {n d : ℕ} (s : Fin n → (Fin d → ℝ)) (w : Fin n → �
 
 -- Helper 3: subset determinant product.
 private lemma sub_det_eq {n d : ℕ} (s : Fin n → (Fin d → ℝ)) (w : Fin n → ℝ)
-    (hw : ∀ i, 0 ≤ w i) (e : Fin d → Fin n) :
+    (e : Fin d → Fin n) :
     (((Matrix.of (fun (i : Fin n) (a : Fin d) => s i a))ᵀ *
       Matrix.diagonal (fun i : Fin n => Real.sqrt (w i))).submatrix id e).det *
     ((Matrix.diagonal (fun i : Fin n => Real.sqrt (w i)) *
@@ -326,7 +326,7 @@ private lemma step4 {n d : ℕ} (s : Fin n → (Fin d → ℝ)) (w : Fin n → �
         have h_val := congrArg Subtype.val h_key
         -- LHS: (euS (σ j) : Fin n) = eS (σ j)
         -- RHS: (euU j : Fin n) = U j
-        simp only [euS, eS] at h_val
+        simp only [euS] at h_val
         -- h_val : ((S.orderIsoOfFin hS (σ j) : ↥S) : Fin n) = U j
         -- But eS (σ j) = ((S.orderIsoOfFin hS (σ j) : ↥S) : Fin n) by definition
         exact h_val.symm
@@ -387,7 +387,7 @@ private lemma step4 {n d : ℕ} (s : Fin n → (Fin d → ℝ)) (w : Fin n → �
   rw [Finset.sum_const, h_card, nsmul_eq_mul]
 
 -- Main theorem
-theorem ordered_cauchy_binet {n d : ℕ} (hdn : d ≤ n) (hd : 0 < d)
+theorem ordered_cauchy_binet {n d : ℕ} (hdn : d ≤ n)
     (s : Fin n → (Fin d → ℝ)) (w : Fin n → ℝ) (hw : ∀ i, 0 ≤ w i) :
     ∑ U : Fin d → Fin n, (∏ j, w (U j)) *
         (Matrix.det (Matrix.of (fun a b : Fin d => s (U b) a))) ^ 2
@@ -420,7 +420,7 @@ theorem ordered_cauchy_binet {n d : ℕ} (hdn : d ≤ n) (hd : 0 < d)
     · rw [dif_pos hS]
       -- A_S = (Smatᵀ * SqW).submatrix id e, B_S = (SqW * Smat).submatrix e id
       -- where e = fun i => ((orderIsoOfFin hS i : ↥S) : Fin n)
-      have h_sub := sub_det_eq s w hw (fun i : Fin d => ((S.orderIsoOfFin hS i : ↥S) : Fin n))
+      have h_sub := sub_det_eq s w (fun i : Fin d => ((S.orderIsoOfFin hS i : ↥S) : Fin n))
       -- h_sub : det(A_S) * det(B_S) = (∏ sqrt^2) * det(M_e)^2
       have h_prod := prod_sqrt_eq w hw S hS
       -- h_prod : (∏ sqrt^2) = ∏ i ∈ S, w i

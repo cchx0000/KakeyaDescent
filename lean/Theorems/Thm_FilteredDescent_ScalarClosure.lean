@@ -227,7 +227,7 @@ theorem gateStage_Xgeom_eq {n : ℕ} (hn : 0 < n) (S : ShadedTubes n) (δ : ℝ)
       gateStage_load_singleton hn S t' δ
     rw [hlca, hload1, hload2]
     simp [htt, hne]
-  · push_neg at hne
+  · push Not at hne
     subst hne
     -- Both sides are 0: LHS has termTube [t] ≠ termTube [t] (false),
     -- RHS has t ≠ t (false)
@@ -258,7 +258,7 @@ theorem gateStage_Xdup_eq_zero {n : ℕ} (hn : 0 < n) (S : ShadedTubes n) (δ : 
       rw [gateStage_termTube_singleton hn S t, gateStage_termTube_singleton hn S t']
       exact hne
     simp [htt]
-  · push_neg at hne
+  · push Not at hne
     subst hne
     -- t = t': LCA = [t] ≠ [], so condition false
     have hlca : treeLCA [t] [t] = [t] := treeLCA_singleton_self t
@@ -330,7 +330,7 @@ theorem gateStage_Hdup {n : ℕ} (hn : 0 < n) (S : ShadedTubes n) :
   rw [heq]
   intro ε hε
   refine ⟨0, le_rfl, fun δ hδ0 hδ1 => ?_⟩
-  simp only [Pi.zero_apply, zero_mul]
+  simp only [zero_mul]
   -- 0 ≤ 0 * δ^{-ε} * _
   simp
 
@@ -352,7 +352,7 @@ We state it in unfolded (pointwise) form as `sum_bound_core`, so that
 `scalar_closure` can feed the estimate into the terminal-unweighting
 chain (`terminal_incidence_count`); `sum_le_of_pair_bound` is the
 `SubpowerLE` wrapper. -/
-theorem sum_bound_core {n : ℕ} (hn : 0 < n) (S : ShadedTubes n)
+theorem sum_bound_core {n : ℕ} (S : ShadedTubes n)
     (hpair : SubpowerLE
       (fun δ => ∑ t : Fin n, ∑ t' : Fin n,
         if t ≠ t' then S.shadeVol t δ * S.shadeVol t' δ else 0)
@@ -407,7 +407,7 @@ theorem sum_bound_core {n : ℕ} (hn : 0 < n) (S : ShadedTubes n)
         simp
         by_cases h : x = t
         · simp [h]
-        · simp [h, Ne.symm h]
+        · simp [h]
       have hdisj : Disjoint ({t} : Finset (Fin n)) (Finset.univ.filter (fun x => x ≠ t)) := by
         rw [Finset.disjoint_left]
         intro x hx
@@ -495,13 +495,13 @@ theorem sum_bound_core {n : ℕ} (hn : 0 < n) (S : ShadedTubes n)
     simpa [hSm, hU, ha] using hfinal
 
 /-- `SubpowerLE` wrapper around `sum_bound_core`. -/
-theorem sum_le_of_pair_bound {n : ℕ} (hn : 0 < n) (S : ShadedTubes n)
+theorem sum_le_of_pair_bound {n : ℕ} (S : ShadedTubes n)
     (hpair : SubpowerLE
       (fun δ => ∑ t : Fin n, ∑ t' : Fin n,
         if t ≠ t' then S.shadeVol t δ * S.shadeVol t' δ else 0)
       (fun δ => S.unionVol δ * ∑ t, S.shadeVol t δ)) :
     SubpowerLE (fun δ => ∑ t, S.shadeVol t δ) S.unionVol :=
-  sum_bound_core hn S hpair
+  sum_bound_core S hpair
 
 /-- `Xroot` for the trivial tree equals the off-diagonal pair sum
 (`Xroot = Xgeom + Xdup`, `Xdup = 0`). -/
@@ -577,7 +577,7 @@ theorem scalar_closure_of_gate {n : ℕ} (hn : 0 < n) (S : ShadedTubes n)
     rw [hB, hL] at h
     exact h
   -- Step 2: pointwise core estimate from the pair bound.
-  have hcore := sum_bound_core hn S hpair'
+  have hcore := sum_bound_core S hpair'
   -- A scale factor: δ^{-ε} ≥ 1 for δ ∈ (0,1), ε > 0.
   have hrpow : ∀ ε δ : ℝ, 0 < δ → δ < 1 → 0 < ε → (1:ℝ) ≤ δ ^ (-ε) := by
     intro ε δ hδ0 hδ1 hε
@@ -654,7 +654,7 @@ theorem scalar_closure_of_gate {n : ℕ} (hn : 0 < n) (S : ShadedTubes n)
             have hCC : C₁ * δ ^ (-ε) ≤ (C₁ + 1) * δ ^ (-ε) :=
               mul_le_mul_of_nonneg_right (by linarith) hrnn
             exact mul_le_mul_of_nonneg_right hCC hlamnn
-    · push_neg at hle
+    · push Not at hle
       rw [min_eq_right (le_of_lt hle)]
       have hC1 : (1:ℝ) ≤ C₁ + 1 := by linarith
       have h1' : (1:ℝ) ≤ (C₁ + 1) * δ ^ (-ε) :=
@@ -695,8 +695,8 @@ theorem scalar_closure_of_gate {n : ℕ} (hn : 0 < n) (S : ShadedTubes n)
         _ ≥ (min (lamIn δ) 2 / 2) * S.unionVol δ :=
             mul_le_mul_of_nonneg_right hα2 hU
   -- Apply the terminal unweighting (paper (130) → (214)).
-  exact terminal_incidence_count hn S.shadeVol S.unionVol
-    S.shade_nonneg S.union_nonneg
+  exact terminal_incidence_count S.shadeVol S.unionVol
+    S.union_nonneg
     (fun δ => min (lamIn δ) 2) M
     hαpos hMpos hαsub hMsub hcount
 
@@ -714,17 +714,14 @@ theorem scalar_closure {d n : ℕ} (hd : d = 2 ∨ d = 3 ∨ d = 4) (hn : 0 < n)
     -- genuine geometric map planarInput_to_Hgeom (not the direct shortcut).
     have hpair := H2 rfl
     have hgeom2 := planarInput_to_Hgeom (gateStageOfShadedTubes hn S) hpair
-      rfl (fun t => gateStage_termTube_singleton hn S t)
+      (fun t => gateStage_termTube_singleton hn S t)
       (fun t δ => gateStage_load_singleton hn S t δ)
       (trivialTree_leaves hn)
     have hdup := gateStage_Hdup hn S
-    -- Apply the root-cross gate (d = 2).
-    have hgate := root_cross_gate (α := Fin n) 2
-      (Or.inl rfl) (gateStageOfShadedTubes hn S)
-      (fun _ => hpair)
-      (fun h => absurd h (by decide))
-      (fun h => absurd h (by decide))
-      hdup hgeom2
+    -- Apply the root-cross gate (dimension-free mechanism; the d = 2 input
+    -- selection already happened via planarInput_to_Hgeom above).
+    have hgate := root_cross_gate (α := Fin n)
+      (gateStageOfShadedTubes hn S) hdup hgeom2
     -- The descent output hgate is fed to the terminal chain: Xroot is
     -- rewritten to the pair sum, and terminal_incidence_count closes it.
     exact scalar_closure_of_gate hn S lamIn hlam hlamSub hgate
@@ -733,27 +730,20 @@ theorem scalar_closure {d n : ℕ} (hd : d = 2 ∨ d = 3 ∨ d = 4) (hn : 0 < n)
     -- Build the gate stage and derive Hgeom/Hdup.
     have hgeom := gateStage_Hgeom hn S hpair
     have hdup := gateStage_Hdup hn S
-    -- Apply the root-cross gate (d = 3).
+    -- Apply the root-cross gate (dimension-free mechanism; the d = 3 input
+    -- selection already happened via gateStage_Hgeom above).
     -- hgate is the Xroot bound from the descent machinery, establishing
     -- the logical dependency: scalar_closure → root_cross_gate → Hgeom.
-    have hgate := root_cross_gate (α := Fin n) 3
-      (Or.inr (Or.inl rfl)) (gateStageOfShadedTubes hn S)
-      (fun h => absurd h (by decide))
-      (fun _ => hpair)
-      (fun h => absurd h (by decide))
-      hdup hgeom
+    have hgate := root_cross_gate (α := Fin n)
+      (gateStageOfShadedTubes hn S) hdup hgeom
     -- Close via the terminal-unweighting chain from the gate output.
     exact scalar_closure_of_gate hn S lamIn hlam hlamSub hgate
   · -- d = 4: via the root-cross gate on the trivial tree (same as d = 3).
     have hpair := H4 rfl
     have hgeom := gateStage_Hgeom hn S hpair
     have hdup := gateStage_Hdup hn S
-    have hgate := root_cross_gate (α := Fin n) 4
-      (Or.inr (Or.inr rfl)) (gateStageOfShadedTubes hn S)
-      (fun h => absurd h (by decide))
-      (fun h => absurd h (by decide))
-      (fun _ => hpair)
-      hdup hgeom
+    have hgate := root_cross_gate (α := Fin n)
+      (gateStageOfShadedTubes hn S) hdup hgeom
     exact scalar_closure_of_gate hn S lamIn hlam hlamSub hgate
 
 end FilteredDescent

@@ -57,7 +57,7 @@ lemma if_and_mul {α : Type} [DecidableEq α] (a γ γ' : List α) (x y : ℝ) :
   by_cases h1 : a <+: γ <;> by_cases h2 : a <+: γ' <;> simp [h1, h2]
 
 theorem tree_lca_reduction {α : Type} [DecidableEq α]
-    (T : Finset (List α)) (hroot : [] ∈ T)
+    (T : Finset (List α))
     (hprefix : ∀ l ∈ T, ∀ p : List α, p <+: l → p ∈ T)
     (u : List α → ℝ) (hu : ∀ γ ∈ treeLeaves T, 0 ≤ u γ)
     (B : ℝ) (hB : 0 ≤ B)

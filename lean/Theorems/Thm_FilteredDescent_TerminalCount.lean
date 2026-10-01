@@ -17,9 +17,8 @@ follows:
 
 namespace FilteredDescent
 
-theorem terminal_incidence_count {n : ℕ} (hn : 0 < n)
+theorem terminal_incidence_count {n : ℕ}
     (shadeVol : Fin n → ℝ → ℝ) (unionVol : ℝ → ℝ)
-    (hsh : ∀ t δ, 0 < δ → δ < 1 → 0 ≤ shadeVol t δ)
     (hu : ∀ δ, 0 < δ → δ < 1 → 0 ≤ unionVol δ)
     (α M : ℝ → ℝ)
     (hα : ∀ δ, 0 < δ → δ < 1 → 0 < α δ)

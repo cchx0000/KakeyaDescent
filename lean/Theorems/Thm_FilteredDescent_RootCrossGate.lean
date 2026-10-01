@@ -5,43 +5,32 @@ import Mathlib.Data.Fintype.Basic
 import Mathlib.Data.Real.Basic
 
 /-!
-# M7 — Root-cross gate (paper (142)), d = 2, 3, 4
+# M7 — Root-cross gate (paper (142))
 
 The root-cross gate: `X^{root} ≲ B^{pred} · ∫N`, uniformly for
-`δ ∈ (0,1)`.  The duplicate part is closed by M6 (taken as the hypothesis
-`Hdup`); the geometric part is the paper's per-dimension analytic
-assembly, whose inputs are the explicitly named imported estimates,
-selected by the dimension hypothesis:
-
-* `d = 2`: the hereditary planar Córdoba estimate [2] (`H2`, paper (53));
-* `d = 3`: the sticky Kakeya input [7,10] (`H3`, paper (177));
-* `d = 4`: the uniform marked 4D sticky input [9] (`H4`, paper (81)).
-
-Only the input matching the dimension is assumed.  The `GateStage`
-bundles the history tree with the shaded tube family it is built over
-(tubes indexed by the shared `Fin n`); deriving the geometric pair bound
-from the selected input is the proof obligation.  `d ≥ 5` is not claimed
-(the paper leaves it open), and the typed Hall-capacity route
-(paper (160)/(207)) is excluded.
-
-## Proof structure
-
-The `Xroot = Xgeom + Xdup` decomposition is proved pointwise from the
-definitions (the same case analysis as M6 `duplicate_closure`).  The
-duplicate part comes from `Hdup` (M6); the geometric part comes from
-`Hgeom`, which is the paper's per-dimension analytic core — formalizing
-how `H2`/`H3`/`H4` imply the geometric bound is the remaining analytic
-work (see the Status note below).  The two `SubpowerLE` bounds combine by
+`δ ∈ (0,1)`.  The gate mechanism itself is dimension-free: `Xroot`
+splits exactly as `Xgeom + Xdup` (the same case analysis as M6
+`duplicate_closure`), and the two `SubpowerLE` bounds combine by
 additivity of the constant.
 
-## Status note
+The two inputs are supplied by the caller:
 
-`Hgeom` is an explicit hypothesis, not a derived fact.  It represents the
-paper's analytic core (§§5–12): deriving the `Xgeom` bound from the
-dimension-specific inputs [2], [7,10], [9].  The `PlanarInput` /
-`StickyInput` / `Marked4DInput` structures are recorded as `H2`/`H3`/`H4`
-but the implication `H2/H3/H4 ⇒ Hgeom` is not formalized.  This is a
-formalization gap, not a paper gap.
+* `Hdup`: the duplicate-part bound (M6).  For gate stages built directly
+  from the tube family `Hgeom` is derived from the paper's per-dimension
+  analytic inputs, selected by the dimension hypothesis at the call site
+  (`scalar_closure`):
+  - `d = 2`: `planarInput_to_Hgeom` from the hereditary planar Córdoba
+    estimate [2] (`H2`, paper (53));
+  - `d = 3`: `stickyInput_to_Hgeom` from the sticky Kakeya input [7,10]
+    (`H3`, paper (177));
+  - `d = 4`: `marked4DInput_to_Hgeom` from the uniform marked 4D sticky
+    input [9] (`H4`, paper (81)).
+  Only the input matching the dimension is assumed.  `d ≥ 5` is not
+  claimed (the paper leaves it open), and the typed Hall-capacity route
+  (paper (160)/(207)) is excluded.
+
+The `GateStage` bundles the history tree with the shaded tube family it
+is built over (tubes indexed by the shared `Fin n`).
 -/
 
 namespace FilteredDescent
@@ -131,7 +120,6 @@ tube, load = shading).  `PlanarInput` has the same pair-incidence shape
 as `StickyInput`/`Marked4DInput`, so the proof is identical. -/
 theorem planarInput_to_Hgeom {n : ℕ} (G : GateStage (Fin n) n 1)
     (h2 : PlanarInput G.shadeVol G.unionVol)
-    (htree : G.tree = {[]} ∪ Finset.univ.image (fun t : Fin n => [t]))
     (hterm : ∀ t : Fin n, G.termTube [t] = t)
     (hload : ∀ t : Fin n, ∀ δ : ℝ, G.load [t] δ = G.shadeVol t δ)
     (hleaves : treeLeaves G.tree = Finset.univ.image (fun t : Fin n => [t])) :
@@ -168,7 +156,7 @@ theorem planarInput_to_Hgeom {n : ℕ} (G : GateStage (Fin n) n 1)
       by_cases hne : t ≠ t'
       · have hlca := treeLCA_singleton_ne hne
         simp [hlca, hterm t, hterm t', hne, hload t δ, hload t' δ]
-      · push_neg at hne
+      · push Not at hne
         subst hne
         have hlca := treeLCA_singleton_self t
         simp [hlca]
@@ -197,7 +185,6 @@ tube, load = shading).  For such a stage, `Xgeom` is exactly the tube-pair
 sum controlled by `StickyInput`. -/
 theorem stickyInput_to_Hgeom {n : ℕ} (G : GateStage (Fin n) n 1)
     (h3 : StickyInput G.shadeVol G.unionVol)
-    (htree : G.tree = {[]} ∪ Finset.univ.image (fun t : Fin n => [t]))
     (hterm : ∀ t : Fin n, G.termTube [t] = t)
     (hload : ∀ t : Fin n, ∀ δ : ℝ, G.load [t] δ = G.shadeVol t δ)
     (hleaves : treeLeaves G.tree = Finset.univ.image (fun t : Fin n => [t])) :
@@ -234,7 +221,7 @@ theorem stickyInput_to_Hgeom {n : ℕ} (G : GateStage (Fin n) n 1)
       by_cases hne : t ≠ t'
       · have hlca := treeLCA_singleton_ne hne
         simp [hlca, hterm t, hterm t', hne, hload t δ, hload t' δ]
-      · push_neg at hne
+      · push Not at hne
         subst hne
         have hlca := treeLCA_singleton_self t
         simp [hlca]
@@ -264,7 +251,6 @@ theorem stickyInput_to_Hgeom {n : ℕ} (G : GateStage (Fin n) n 1)
 /-- H4 ⇒ Hgeom: same as above for the marked 4D input. -/
 theorem marked4DInput_to_Hgeom {n : ℕ} (G : GateStage (Fin n) n 1)
     (h4 : Marked4DInput G.shadeVol G.unionVol)
-    (htree : G.tree = {[]} ∪ Finset.univ.image (fun t : Fin n => [t]))
     (hterm : ∀ t : Fin n, G.termTube [t] = t)
     (hload : ∀ t : Fin n, ∀ δ : ℝ, G.load [t] δ = G.shadeVol t δ)
     (hleaves : treeLeaves G.tree = Finset.univ.image (fun t : Fin n => [t])) :
@@ -300,7 +286,7 @@ theorem marked4DInput_to_Hgeom {n : ℕ} (G : GateStage (Fin n) n 1)
       by_cases hne : t ≠ t'
       · have hlca := treeLCA_singleton_ne hne
         simp [hlca, hterm t, hterm t', hne, hload t δ, hload t' δ]
-      · push_neg at hne
+      · push Not at hne
         subst hne
         have hlca := treeLCA_singleton_self t
         simp [hlca]
@@ -323,11 +309,7 @@ theorem marked4DInput_to_Hgeom {n : ℕ} (G : GateStage (Fin n) n 1)
   simpa using hgoal
 
 theorem root_cross_gate {α : Type} [DecidableEq α] {n m : ℕ}
-    (d : ℕ) (hd : d = 2 ∨ d = 3 ∨ d = 4)
     (G : GateStage α n m)
-    (H2 : d = 2 → PlanarInput G.shadeVol G.unionVol)
-    (H3 : d = 3 → StickyInput G.shadeVol G.unionVol)
-    (H4 : d = 4 → Marked4DInput G.shadeVol G.unionVol)
     (Hdup :
       SubpowerLE (fun δ => Xdup G.tree (fun γ => G.load γ δ) G.termTube)
         (fun δ => G.Bpred δ * ∑ γ ∈ treeLeaves G.tree, G.load γ δ))

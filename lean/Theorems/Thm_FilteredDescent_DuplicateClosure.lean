@@ -19,11 +19,10 @@ bound (the finite form of paper (150)–(151)):
 namespace FilteredDescent
 
 theorem duplicate_closure {α : Type} [DecidableEq α] {n m : ℕ}
-    (T : Finset (List α)) (hroot : [] ∈ T)
-    (hprefix : ∀ l ∈ T, ∀ p : List α, p <+: l → p ∈ T)
+    (T : Finset (List α))
     (u : List α → ℝ) (hu : ∀ γ ∈ treeLeaves T, 0 ≤ u γ)
     (termTube : List α → Fin n) (carrier : List α → Fin m)
-    (A B : ℝ) (hA : 0 ≤ A) (hB : 0 ≤ B)
+    (A B : ℝ)
     (hagg :
       ∀ t : Fin n, ∀ c : Fin m,
         ∑ γ ∈ (treeLeaves T).filter (fun γ => termTube γ = t ∧ carrier γ = c),

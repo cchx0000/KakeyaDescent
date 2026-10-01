@@ -89,7 +89,7 @@ theorem r5_marginal_bound_part1 {n r : ℕ} (j : Fin r) (t : Fin n) (w : Fin n �
         rw [hWr, mul_comm ((∑ i, w i) ^ (r - 1)) (∑ i, w i)]
         exact mul_div_mul_right _ _ hWrm1_ne
 
-theorem r5_marginal_bound {n r : ℕ} (hn : 0 < n) (hr : 0 < r)
+theorem r5_marginal_bound {n r : ℕ} (hr : 0 < r)
     (w : Fin n → ℝ) (hw : ∀ i, 0 ≤ w i) (hW : 0 < ∑ i, w i)
     (j : Fin r) (t : Fin n) :
     slotMarginal w j t = w t / ∑ i, w i ∧
