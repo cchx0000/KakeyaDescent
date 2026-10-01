@@ -700,6 +700,14 @@ theorem scalar_closure_of_gate {n : ℕ} (hn : 0 < n) (S : ShadedTubes n)
     (fun δ => min (lamIn δ) 2) M
     hαpos hMpos hαsub hMsub hcount
 
+/-- Scalar filtered-descent closure (paper §13.2, (214)) via the OLD
+simplified `root_cross_gate` path (trivial tree + retained-fraction `(130)`
+terminal unweighting).  This statement is still true and its proof is
+untouched, but it is SUPERSEDED by the faithful path:
+`scalar_closure_discharged` (`Thm_FilteredDescent_EndToEnd.lean`) proves the
+same conclusion through the faithful §10 gate with `Hpred` (138) discharged
+by the well-founded descent induction, without the retained-fraction
+detour. -/
 theorem scalar_closure {d n : ℕ} (hd : d = 2 ∨ d = 3 ∨ d = 4) (hn : 0 < n)
     (S : ShadedTubes n)
     (lamIn : ℝ → ℝ) (hlam : ∀ δ, 0 < δ → δ < 1 → 0 < lamIn δ)
