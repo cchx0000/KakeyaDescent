@@ -1,4 +1,5 @@
 import Theorems.Thm_FilteredDescent_DescentTree
+import Theorems.Thm_FilteredDescent_DescentLeaves
 import Theorems.Thm_FilteredDescent_SubtreeReroot
 import Mathlib.Data.Fintype.Card
 import Mathlib.Data.List.OfFn
@@ -7,13 +8,10 @@ import Mathlib.Data.List.OfFn
 # Filtered descent — bounds on the constructed tree (paper §§6–9, M3–M4)
 
 This file proves the quantitative bounds for the symmetric history-tree
-model built in `Thm_FilteredDescent_DescentTree.lean`:
+model built in `Thm_FilteredDescent_DescentTree.lean`, on top of the leaf
+characterization and fiber counting in
+`Thm_FilteredDescent_DescentLeaves.lean`:
 
-* Leaf characterization: leaves are exactly the `leafWord cb t` words
-  (`H₀` confluence marks, `C₀ - 1` Cartan marks, terminal `select t`).
-* Fiber counting: for a node `x`, the `(x, t)`-fiber (leaves `γ` with
-  `x <+: γ` and `termTube γ = t`) has size `N_x(t)`; at the root,
-  `N_[](t) = B ^ H₀` exactly.
 * `Dx`: the rerooted subtree load at `x` for terminal tube `t`.
 * `terminal_hardening` (M3): `∑ t, (Dx x t δ)² ≤ unionVol δ * totalLoad_x δ`,
   proved pointwise via `Dx x t δ = (N_x(t)/M) * sv(t)` and `N_x(t) ≤ M`.
@@ -39,17 +37,6 @@ namespace FilteredDescent
 
 variable {n B H₀ C₀ : ℕ}
 
-/-- A leaf word: `H₀` confluence branches `cb`, then `C₀ - 1` Cartan steps,
-then the terminal `select t`. -/
-def leafWord (cb : List (Fin B)) (t : Fin n) : List (DMark n B) :=
-  cb.map DMark.conf ++ List.replicate (C₀ - 1) DMark.cartan ++ [DMark.select t]
-
-/-- The confluence-branch word of a leaf (inverse of `leafWord` on leaves). -/
-def leafConf : List (DMark n B) → List (Fin B)
-  | [] => []
-  | (DMark.conf b) :: w => b :: leafConf w
-  | _ :: w => leafConf w
-
 /-- A `ValidPath` with `selectCount = 1` has `confCount = H₀`
 (by induction on the derivation; only `selectStep` can set the select). -/
 theorem ValidPath.confCount_of_select {w : List (DMark n B)}
@@ -73,28 +60,6 @@ theorem ValidPath.confCount_of_select {w : List (DMark n B)}
       -- `confCount (w ++ [select t]) = confCount w = H₀` by `hconf`
       rw [confCount_append]
       simp [hconf]
-
-/-- `leafConf` length equals `confCount`. -/
-theorem leafConf_length (w : List (DMark n B)) :
-    (leafConf w).length = confCount w := by
-  induction w with
-  | nil => rfl
-  | cons x xs ih =>
-      cases x with
-      | conf b => simp [leafConf, confCount, ih]
-      | cartan => simp [leafConf, confCount, ih]
-      | select t => simp [leafConf, confCount, ih]
-
-/-- `leafConf` distributes over append. -/
-theorem leafConf_append (l₁ l₂ : List (DMark n B)) :
-    leafConf (l₁ ++ l₂) = leafConf l₁ ++ leafConf l₂ := by
-  induction l₁ with
-  | nil => simp [leafConf]
-  | cons x xs ih =>
-      cases x with
-      | conf b => simp [leafConf, ih]
-      | cartan => simp [leafConf, ih]
-      | select t => simp [leafConf, ih]
 
 /-- `leaf_bound` for the constructed tree: the leaf load is bounded by
 `unionVol`.  Proof: `sv(t)/M ≤ sv(t) ≤ unionVol` using `M ≥ 1` and
