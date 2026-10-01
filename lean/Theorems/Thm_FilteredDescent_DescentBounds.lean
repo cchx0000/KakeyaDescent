@@ -50,11 +50,40 @@ def leafConf : List (DMark n B) → List (Fin B)
   | (DMark.conf b) :: w => b :: leafConf w
   | _ :: w => leafConf w
 
-end FilteredDescent
+/-- A `ValidPath` with `selectCount = 1` has `confCount = H₀`
+(by induction on the derivation; only `selectStep` can set the select). -/
+theorem ValidPath.confCount_of_select {w : List (DMark n B)}
+    (h : ValidPath n B H₀ C₀ w) (hs : selectCount w = 1) :
+    confCount w = H₀ := by
+  induction h with
+  | nil => simp at hs
+  | confStep =>
+      rename_i w b hw hc hcart hs0 ih
+      -- `selectCount (w ++ [conf b]) = selectCount w = 0 ≠ 1`
+      rw [selectCount_append] at hs
+      simp at hs
+      omega
+  | cartanStep =>
+      rename_i w hw hconf hc hs0 ih
+      rw [selectCount_append] at hs
+      simp at hs
+      omega
+  | selectStep =>
+      rename_i w t hw hconf hcart hs0 ih
+      -- `confCount (w ++ [select t]) = confCount w = H₀` by `hconf`
+      rw [confCount_append]
+      simp [hconf]
 
-namespace FilteredDescent
-
-variable {n B H₀ C₀ : ℕ}
+/-- `leafConf` length equals `confCount`. -/
+theorem leafConf_length (w : List (DMark n B)) :
+    (leafConf w).length = confCount w := by
+  induction w with
+  | nil => rfl
+  | cons x xs ih =>
+      cases x with
+      | conf b => simp [leafConf, confCount, ih]
+      | cartan => simp [leafConf, confCount, ih]
+      | select t => simp [leafConf, confCount, ih]
 
 /-- `leaf_bound` for the constructed tree: the leaf load is bounded by
 `unionVol`.  Proof: `sv(t)/M ≤ sv(t) ≤ unionVol` using `M ≥ 1` and
