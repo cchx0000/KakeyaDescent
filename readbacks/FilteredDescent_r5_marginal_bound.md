@@ -1,0 +1,15 @@
+**Read-back for `FilteredDescent.r5_marginal_bound`:**
+
+The theorem is stated inside the namespace `FilteredDescent`. It takes implicit natural numbers $n$ and $r$, explicit hypotheses $0 < n$ and $0 < r$, a weight function $w$ assigning a real number to each of $n$ tubes, the hypothesis that every weight is nonnegative ($\forall i,\ 0 \le w_i$), the hypothesis that the total weight $W = \sum_i w_i$ is strictly positive, a slot index $j$ (ranging over the $r$-element index set) and a tube index $t$ (ranging over the $n$-element index set). It then asserts a conjunction of two claims.
+
+First, the auxiliary definitions, expanded inline. The "packet law" assigns to each ordered $r$-tuple $U$ of tubes the value $P(U) = \left(\prod_{k} w_{U_k}\right) / W^r$, i.e. the product of the tube weights along the tuple divided by the $r$-th power of the total weight. The "slot marginal" of slot $j$ at tube $t$ is the sum of $P(U)$ over all ordered $r$-tuples $U$ whose $j$-th entry equals $t$ (tuples with $j$-th entry different from $t$ contribute $0$). The "retained mass" of an event $A$ (a finite set of ordered $r$-tuples) is the sum of $P(U)$ over $U \in A$.
+
+The first claim is that the slot marginal of slot $j$ at tube $t$ equals $w_t / W$, the normalized weight of tube $t$.
+
+The second claim quantifies over every nonempty finite set $A$ of ordered $r$-tuples and every real number $\alpha$ satisfying $\alpha = \sum_{U \in A} P(U)$ (the retained mass of $A$) together with $0 < \alpha$, and asserts
+
+$$\frac{\sum_{U \in A,\ U_j = t} P(U)}{\alpha} \;\le\; \frac{1}{\alpha}\cdot\frac{w_t}{W}.$$
+
+In words: the $\alpha$-normalized mass of those tuples in $A$ whose $j$-th slot equals $t$ is at most $\alpha^{-1}$ times the base quantity $w_t/W$.
+
+Edge cases and fine print: the hypotheses $0 < n$ and $0 < r$ rule out the degenerate cases $n = 0$ and $r = 0$ (with $r = 0$ there would be no slot index $j$ to instantiate). The strict positivity $W > 0$ is what makes every division by $W$ and $W^r$ meaningful; with $W = 0$ the definition of $P$ would divide by $0^r$, which in Lean evaluates to junk ($0/0 = 0$), so this hypothesis is load-bearing. Nonnegativity of the weights is assumed, but no upper bound on them is. The event $A$ is required to be nonempty, although an empty $A$ would give retained mass $0$ and hence could never satisfy $0 < \alpha$ anyway, so the nonemptiness hypothesis is nearly redundant given the two hypotheses on $\alpha$. The variable $\alpha$ is not independently chosen: it is pinned by the equation $\alpha = \sum_{U \in A} P(U)$, so the claim is really about the ratio of the restricted sum to the total retained mass of $A$. If no tuple of $A$ has $j$-th slot equal to $t$, the left-hand side is $0/\alpha = 0$ and the inequality reduces to $0 \le (w_t/W)/\alpha$, which is consistent with $w_t \ge 0$, $W > 0$ and $\alpha > 0$. The inequality is non-strict ($\le$), and the domination constant is exactly $\alpha^{-1}$ — the statement says nothing about whether this constant is sharp. The proof body is `sorry` (absent); this read-back concerns only what is asserted.

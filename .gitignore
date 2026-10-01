@@ -1,0 +1,26 @@
+# Credentials and tokens - NEVER commit
+credentials.json
+**/credentials.json
+/tmp/p2m_token
+*.key
+*.pem
+.env
+
+# Lean build artifacts
+lean/.lake/
+lean/build/
+**/.lake/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temp
+*.tmp
+*.bak
+*~
