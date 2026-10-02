@@ -780,4 +780,43 @@ deriving DecidableEq
 summing over carriers. -/
 def ModelData.key (d : ModelData) : ℕ × ℕ := (d.theta, d.slot)
 
+/-- Nodes of a tree with a given (θ,j) key. -/
+def nodesWithKey {α : Type} [DecidableEq α] {n : ℕ}
+    (T : Finset (List (DescentState α n)))
+    (modelOf : List (DescentState α n) → ModelData) (k : ℕ × ℕ) :
+    Finset (List (DescentState α n)) :=
+  T.filter (fun p => (modelOf p).key = k)
+
+/-- Aggregate load at key (θ,j): sum over carriers `c`.
+Paper: "`W^{θ,j} := Σ_c W^{θ,j,c}`. This is one disjoint aggregate of
+proper structural nodes." -/
+noncomputable def aggLoad {α : Type} [DecidableEq α] {n : ℕ}
+    (T : Finset (List (DescentState α n)))
+    (modelOf : List (DescentState α n) → ModelData)
+    (W : List (DescentState α n) → ℝ) (k : ℕ × ℕ) : ℝ :=
+  ∑ p ∈ nodesWithKey T modelOf k, W p
+
+/-- Partition of total load by (θ,j) key: the keys partition the tree,
+so the total is the sum of aggregates. -/
+theorem total_eq_sum_agg {α : Type} [DecidableEq α] {n : ℕ}
+    (T : Finset (List (DescentState α n)))
+    (modelOf : List (DescentState α n) → ModelData)
+    (W : List (DescentState α n) → ℝ) :
+    ∑ p ∈ T, W p = ∑ k ∈ T.image (fun p => (modelOf p).key), aggLoad T modelOf W k := by
+  unfold aggLoad nodesWithKey
+  symm
+  apply Finset.sum_fiberwise_of_maps_to (g := fun p : List (DescentState α n) => (modelOf p).key)
+  intro p hp
+  exact Finset.mem_image_of_mem _ hp
+
+/-- Carrier count bound interface (paper (152)): for fixed (θ,j), the
+number of distinct carriers is at most `|C_κ|`.  This is the named
+input `hcard` from the terminal hardening. -/
+def carrierBounded {α : Type} [DecidableEq α] {n : ℕ}
+    (T : Finset (List (DescentState α n)))
+    (modelOf : List (DescentState α n) → ModelData)
+    (Ccard : ℝ) : Prop :=
+  ∀ k : ℕ × ℕ, ((nodesWithKey T modelOf k).image (fun p => (modelOf p).carrier)).card
+    ≤ Ccard
+
 end FilteredDescent
