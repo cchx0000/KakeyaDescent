@@ -339,4 +339,109 @@ theorem firstFailedFace_step {α : Type} [DecidableEq α] {n : ℕ}
       rw [ht_supp]
       exact lt_of_le_of_ne (firstFailedFace_subset _ _) (fun h => heq (ht_supp.trans h))
 
+/-! ## F3c: Well-founded descent tree -/
+
+/-- The descent tree rooted at `s`: all root-to-node paths `[s, s₁, ...]`
+where each step is a successor.  Built by well-founded recursion on
+`DescentStep` (paper: the tree `T_{I,k}` with (135)-decreasing edges).
+
+Finiteness is by construction (`Finset`); well-foundedness ensures
+every path terminates. -/
+noncomputable def descentTree {α : Type} [Fintype α] [DecidableEq α] {n : ℕ}
+    (s : DescentState α n) : Finset (List (DescentState α n)) :=
+  DescentStep.wellFounded.fix
+    (fun s ih =>
+      {[s]} ∪ (successors s).attach.biUnion (fun ⟨t, ht⟩ =>
+        (ih t (successors_are_steps s t ht)).image (fun p => s :: p)))
+    s
+
+/-- Unfolding equation for the descent tree. -/
+theorem descentTree_unfold {α : Type} [Fintype α] [DecidableEq α] {n : ℕ}
+    (s : DescentState α n) :
+    descentTree s = {[s]} ∪ (successors s).attach.biUnion (fun ⟨t, _⟩ =>
+      (descentTree t).image (fun p => s :: p)) := by
+  unfold descentTree
+  rw [WellFounded.fix_eq]
+
+/-- Root membership: the singleton path is in the tree. -/
+theorem descentTree_root_mem {α : Type} [Fintype α] [DecidableEq α] {n : ℕ}
+    (s : DescentState α n) : [s] ∈ descentTree s := by
+  rw [descentTree_unfold]
+  exact Finset.mem_union_left _ (Finset.mem_singleton_self [s])
+
+/-- Every path in the tree starts with the root. -/
+theorem descentTree_head {α : Type} [Fintype α] [DecidableEq α] {n : ℕ}
+    (s : DescentState α n) (p : List (DescentState α n))
+    (hp : p ∈ descentTree s) : p.head? = some s := by
+  -- By well-founded induction on s
+  induction s using WellFounded.induction DescentStep.wellFounded with
+  | _ s ih =>
+    rw [descentTree_unfold] at hp
+    rw [Finset.mem_union] at hp
+    rcases hp with hp | hp
+    · rw [Finset.mem_singleton] at hp
+      rw [hp]
+      rfl
+    · rw [Finset.mem_biUnion] at hp
+      obtain ⟨⟨t, ht⟩, _, hp⟩ := hp
+      rw [Finset.mem_image] at hp
+      obtain ⟨q, hq, rfl⟩ := hp
+      -- (s :: q).head? = some s by definition
+      rfl
+
+/-! ## F3d: Descent chain property and labels -/
+
+/-- A list of states is a descent chain if consecutive elements are
+`DescentStep`-related (child < parent). -/
+def IsDescentChain {α : Type} {n : ℕ} : List (DescentState α n) → Prop
+  | [] => True
+  | [_] => True
+  | a :: b :: rest => DescentStep b a ∧ IsDescentChain (b :: rest)
+
+/-- Every path in the descent tree is a descent chain. -/
+theorem descentTree_isChain {α : Type} [Fintype α] [DecidableEq α] {n : ℕ}
+    (s : DescentState α n) (p : List (DescentState α n))
+    (hp : p ∈ descentTree s) : IsDescentChain p := by
+  induction s using WellFounded.induction DescentStep.wellFounded
+    generalizing p with
+  | _ s ih =>
+    rw [descentTree_unfold] at hp
+    rw [Finset.mem_union] at hp
+    rcases hp with hp | hp
+    · -- p = [s], singleton is a chain
+      rw [Finset.mem_singleton] at hp
+      rw [hp]
+      trivial
+    · -- p = s :: q for q ∈ descentTree t, t ∈ successors s
+      rw [Finset.mem_biUnion] at hp
+      obtain ⟨⟨t, ht⟩, _, hp⟩ := hp
+      rw [Finset.mem_image] at hp
+      obtain ⟨q, hq, rfl⟩ := hp
+      -- q ∈ descentTree t, so by ih, q is a chain
+      have hchain : IsDescentChain q := ih t (successors_are_steps s t ht) q hq
+      -- s :: q is a chain: need DescentStep (q.head) s and chain q
+      cases q with
+      | nil =>
+        -- q = [], so s :: [] = [s], singleton chain
+        trivial
+      | cons b rest =>
+        -- q = b :: rest, need DescentStep b s
+        -- Since q ∈ descentTree t, q.head? = some t (by descentTree_head)
+        have hhead : (b :: rest).head? = some t := descentTree_head t _ hq
+        simp at hhead
+        -- hhead : b = t
+        rw [hhead]
+        -- Goal: DescentStep t s ∧ IsDescentChain (t :: rest)
+        -- But q = b :: rest = t :: rest, and hchain : IsDescentChain (t :: rest)
+        refine ⟨successors_are_steps s t ht, ?_⟩
+        rw [← hhead]
+        exact hchain
+
+/-- Label of a path: the (135) label of its last state (the node).
+Empty path gets the minimal label. -/
+def pathLabel {α : Type} {n : ℕ} (p : List (DescentState α n)) : ℕ × ℕ × ℕ :=
+  match p.getLast? with
+  | some t => descentLabel t
+  | none => (0, 0, 0)
+
 end FilteredDescent
