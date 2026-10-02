@@ -170,4 +170,62 @@ theorem uniform_not_trivial :
     linarith [hC]
   linarith [hcon, hlt]
 
+/-- Uniform subpower domination is reflexive on quantities nonnegative on `(0,1)`. -/
+theorem UniformSubpowerLE.refl {Config : ℝ → Type}
+    {X : ∀ δ : ℝ, Config δ → ℝ}
+    (hx : ∀ δ : ℝ, 0 < δ → δ < 1 → ∀ cfg : Config δ, 0 ≤ X δ cfg) :
+    UniformSubpowerLE Config X X := by
+  unfold UniformSubpowerLE
+  intro ε hε
+  refine ⟨1, zero_le_one, fun δ hδ0 hδ1 cfg => ?_⟩
+  have h : (1 : ℝ) ≤ δ ^ (-ε) := by
+    rw [Real.rpow_neg (le_of_lt hδ0)]
+    exact (one_le_inv_iff₀).mpr ⟨Real.rpow_pos_of_pos hδ0 ε,
+      le_of_lt (Real.rpow_lt_one (le_of_lt hδ0) hδ1 hε)⟩
+  calc X δ cfg = 1 * X δ cfg := by ring
+    _ ≤ δ ^ (-ε) * X δ cfg := mul_le_mul_of_nonneg_right h (hx δ hδ0 hδ1 cfg)
+    _ = 1 * δ ^ (-ε) * X δ cfg := by ring
+
+/-- Chaining a uniform subpower bound through a middle factor. -/
+theorem UniformSubpowerLE.trans_right {Config : ℝ → Type}
+    {X Y Z : ∀ δ : ℝ, Config δ → ℝ}
+    (hxy : UniformSubpowerLE Config X Y) (hyz : UniformSubpowerLE Config Y Z) :
+    UniformSubpowerLE Config X Z := by
+  unfold UniformSubpowerLE at *
+  intro ε hε
+  obtain ⟨C₁, hC₁, h₁⟩ := hxy (ε / 2) (by linarith)
+  obtain ⟨C₂, hC₂, h₂⟩ := hyz (ε / 2) (by linarith)
+  refine ⟨C₁ * C₂, mul_nonneg hC₁ hC₂, fun δ hδ0 hδ1 cfg => ?_⟩
+  have hpow : δ ^ (-ε) = δ ^ (-(ε / 2)) * δ ^ (-(ε / 2)) := by
+    rw [← Real.rpow_add hδ0]
+    ring_nf
+  have hnn : 0 ≤ δ ^ (-(ε / 2)) := Real.rpow_nonneg (le_of_lt hδ0) _
+  calc X δ cfg ≤ C₁ * δ ^ (-(ε / 2)) * Y δ cfg := h₁ δ hδ0 hδ1 cfg
+    _ ≤ C₁ * δ ^ (-(ε / 2)) * (C₂ * δ ^ (-(ε / 2)) * Z δ cfg) :=
+        mul_le_mul_of_nonneg_left (h₂ δ hδ0 hδ1 cfg) (mul_nonneg hC₁ hnn)
+    _ = (C₁ * C₂) * δ ^ (-ε) * Z δ cfg := by rw [hpow]; ring
+
+/-- Pointwise uniform bound with a constant lifts to `UniformSubpowerLE`. -/
+theorem UniformSubpowerLE.of_le_const {Config : ℝ → Type}
+    {X Y : ∀ δ : ℝ, Config δ → ℝ} {K : ℝ}
+    (hK : 0 ≤ K)
+    (hf : ∀ δ : ℝ, 0 < δ → δ < 1 → ∀ cfg : Config δ, X δ cfg ≤ K * Y δ cfg)
+    (hg : ∀ δ : ℝ, 0 < δ → δ < 1 → ∀ cfg : Config δ, 0 ≤ Y δ cfg) :
+    UniformSubpowerLE Config X Y := by
+  intro ε hε
+  refine ⟨K, hK, fun δ hδ0 hδ1 cfg => ?_⟩
+  have hge : 1 ≤ δ ^ (-ε) := by
+    have h1 : δ ^ ε ≤ 1 := Real.rpow_le_one hδ0.le hδ1.le hε.le
+    have h2 : (0:ℝ) < δ ^ ε := Real.rpow_pos_of_pos hδ0 ε
+    rw [Real.rpow_neg hδ0.le]
+    exact (one_le_inv_iff₀).mpr ⟨h2, h1⟩
+  have hfg := hf δ hδ0 hδ1 cfg
+  have hgδ := hg δ hδ0 hδ1 cfg
+  calc X δ cfg ≤ K * Y δ cfg := hfg
+    _ ≤ K * (δ ^ (-ε) * Y δ cfg) := by
+        apply mul_le_mul_of_nonneg_left _ hK
+        calc Y δ cfg = 1 * Y δ cfg := (one_mul _).symm
+          _ ≤ δ ^ (-ε) * Y δ cfg := mul_le_mul_of_nonneg_right hge hgδ
+    _ = K * δ ^ (-ε) * Y δ cfg := by ring
+
 end FilteredDescent
