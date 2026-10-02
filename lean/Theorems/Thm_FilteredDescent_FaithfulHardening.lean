@@ -326,4 +326,170 @@ theorem histCount_le_card_div {n : ℕ} {K : Type*} [Fintype K] [DecidableEq K]
         rw [Finset.sum_const, Finset.card_univ, nsmul_eq_mul]
         ring
 
+/-- Fused node hardening, full version (TODO_GUIDANCE P1-4).
+
+Re-runs (149)-(153) with uniform subpower predecessor constant.
+`hlink`/`hquant` keep original `Bpred`; (149) uses the inflated bound
+from `uniform_proper_const`; extra factor absorbed into subpower ledger. -/
+theorem node_hardening_subpower {α : Type} [Fintype α] [DecidableEq α]
+    {n : ℕ} (T : Finset (List α))
+    (hprefix : ∀ l ∈ T, ∀ p : List α, p <+: l → p ∈ T)
+    (hnonroot : ∀ γ ∈ treeLeaves T, γ ≠ [])
+    (termTube : List α → Fin n) (load : List α → ℝ → ℝ)
+    (hload : ∀ γ ∈ treeLeaves T, ∀ δ : ℝ, 0 < δ → δ < 1 → 0 ≤ load γ δ)
+    (Bpred : ℝ → ℝ)
+    (hBpred_nn : ∀ δ, 0 < δ → δ < 1 → 0 ≤ Bpred δ)
+    (Hpred_sub : ∀ a ∈ T, a ≠ [] →
+      SubpowerLE (fun δ => nodeAgg T (fun γ => load γ δ) a) Bpred)
+    (H : HardeningInputs ((treeChildren T []).card) n)
+    (hlink : ∀ k t δ, 0 < δ → δ < 1 →
+      ∑ b ∈ Finset.univ.filter (fun b : Fin (treeChildren T []).card =>
+        H.cls b = k ∧ 0 < rootChildDb T termTube load b t δ),
+        rootChildDb T termTube load b t δ
+        ≤ Bpred δ * ∑ U ∈ H.A k,
+          (if U (H.slotOf k) = t then packetLaw (H.w k) U else 0))
+    (hquant : ∀ k (b : Fin (treeChildren T []).card) t δ,
+      0 < δ → δ < 1 → H.cls b = k →
+      0 < rootChildDb T termTube load b t δ →
+      H.c₀ * Bpred δ ≤ rootChildDb T termTube load b t δ) :
+    SubpowerLE
+      (fun δ => ∑ t : Fin n, (termLoad T termTube load t δ)^2)
+      (fun δ => Bpred δ * totalLoad T load δ) := by
+  intro ε hε
+  obtain ⟨C₁, hC₁, hUnif⟩ :=
+    uniform_proper_const T (fun γ δ => load γ δ) Bpred
+      (fun δ hδ0 hδ1 => hBpred_nn δ hδ0 hδ1) Hpred_sub ε hε
+  obtain ⟨Cκ, hCκ, hκ⟩ := H.hcard (ε/2) (half_pos hε)
+  refine ⟨(Cκ / H.c₀) * C₁, mul_nonneg (div_nonneg hCκ (le_of_lt H.hc₀)) hC₁,
+    fun δ hδ0 hδ1 => ?_⟩
+  have hDb_le' : ∀ b : Fin (treeChildren T []).card, ∀ t : Fin n,
+      rootChildDb T termTube load b t δ ≤ C₁ * δ^(-(ε/2)) * Bpred δ := by
+    intro b t
+    exact rootChildDb_le_Bpred T termTube load hload
+      (fun δ => C₁ * δ^(-(ε/2)) * Bpred δ)
+      (fun δ hδ0 hδ1 a ha hane => hUnif a ha hane δ hδ0 hδ1)
+      b t δ hδ0 hδ1
+  -- (149') via filtered sum, avoiding nested calc.
+  have h149' : ∀ t : Fin n,
+      termLoad T termTube load t δ ≤
+        histCount (rootChildDb T termTube load) t δ *
+          (C₁ * δ^(-(ε/2)) * Bpred δ) := by
+    intro t
+    have hD_eq := termLoad_eq_sum_rootChildDb T hprefix hnonroot termTube load t δ
+    rw [hD_eq]
+    have hsplit :
+        ∑ b ∈ Finset.univ.filter
+          (fun b : Fin (treeChildren T []).card =>
+            0 < rootChildDb T termTube load b t δ),
+          rootChildDb T termTube load b t δ
+        = ∑ b : Fin (treeChildren T []).card,
+          rootChildDb T termTube load b t δ := by
+      rw [Finset.sum_filter]
+      apply Finset.sum_congr rfl
+      intro b _
+      by_cases hb : 0 < rootChildDb T termTube load b t δ
+      · rw [if_pos hb]
+      · rw [if_neg hb]
+        have hnn := rootChildDb_nonneg T termTube load hload b t δ hδ0 hδ1
+        linarith [le_of_not_gt hb]
+    rw [← hsplit]
+    have hle := Finset.sum_le_card_nsmul
+      (Finset.univ.filter
+        (fun b : Fin (treeChildren T []).card =>
+          0 < rootChildDb T termTube load b t δ))
+      (fun b : Fin (treeChildren T []).card => rootChildDb T termTube load b t δ)
+      (C₁ * δ^(-(ε/2)) * Bpred δ)
+      (fun b _ => hDb_le' b t)
+    rw [nsmul_eq_mul] at hle
+    -- histCount unfolds to the filter card as a real.
+    have hhc : histCount (rootChildDb T termTube load) t δ
+        = ((Finset.univ.filter
+            (fun b : Fin (treeChildren T []).card =>
+              0 < rootChildDb T termTube load b t δ)).card : ℝ) := rfl
+    rw [hhc]; exact hle
+  -- histCount bound (original Bpred).
+  have hHC : ∀ t : Fin n,
+      histCount (rootChildDb T termTube load) t δ ≤
+        (Cκ * δ^(-(ε/2))) / H.c₀ := by
+    intro t
+    have h1 := histCount_le_card_div
+      (rootChildDb T termTube load)
+      (fun b t δ hδ0 hδ1 =>
+        rootChildDb_nonneg T termTube load hload b t δ hδ0 hδ1)
+      Bpred hBpred_nn H.cls H.slotOf H.hr
+      H.w H.hw H.hW H.A H.hAne H.α H.hα H.hαpos
+      hlink H.c₀ H.hc₀ hquant t δ hδ0 hδ1
+    have h2 : (Fintype.card H.K : ℝ) ≤ Cκ * δ^(-(ε/2)) := by
+      have h := hκ δ hδ0 hδ1; simpa using h
+    calc histCount (rootChildDb T termTube load) t δ
+        ≤ (Fintype.card H.K : ℝ) / H.c₀ := h1
+      _ ≤ (Cκ * δ^(-(ε/2))) / H.c₀ :=
+          div_le_div_of_nonneg_right h2 (le_of_lt H.hc₀)
+  -- D_t nonneg.
+  have hDt_nn : ∀ t : Fin n, 0 ≤ termLoad T termTube load t δ := by
+    intro t; unfold termLoad
+    apply Finset.sum_nonneg; intro γ hγ
+    rw [Finset.mem_filter] at hγ; exact hload γ hγ.1 δ hδ0 hδ1
+  -- Per-term bound.
+  have hsq : ∀ t : Fin n,
+      (termLoad T termTube load t δ)^2 ≤
+        (((Cκ / H.c₀) * C₁) * δ^(-ε) * Bpred δ) *
+          termLoad T termTube load t δ := by
+    intro t
+    have h1 := h149' t
+    have h2 := hHC t
+    have h3 := hDt_nn t
+    have hpow := rpow_half_add δ ε hδ0
+    have hstep1 : (termLoad T termTube load t δ)^2 ≤
+        (histCount (rootChildDb T termTube load) t δ *
+          (C₁ * δ^(-(ε/2)) * Bpred δ)) *
+          termLoad T termTube load t δ := by
+      have : (termLoad T termTube load t δ)^2
+          = termLoad T termTube load t δ * termLoad T termTube load t δ := by ring
+      rw [this]; exact mul_le_mul_of_nonneg_right h1 h3
+    have hstep2 : (histCount (rootChildDb T termTube load) t δ *
+          (C₁ * δ^(-(ε/2)) * Bpred δ)) *
+          termLoad T termTube load t δ ≤
+        ((((Cκ * δ^(-(ε/2))) / H.c₀) * (C₁ * δ^(-(ε/2)) * Bpred δ))) *
+          termLoad T termTube load t δ := by
+      apply mul_le_mul_of_nonneg_right _ h3
+      apply mul_le_mul_of_nonneg_right h2
+      apply mul_nonneg
+      · exact mul_nonneg hC₁ (le_of_lt (Real.rpow_pos_of_pos hδ0 _))
+      · exact hBpred_nn δ hδ0 hδ1
+    have heq : (((Cκ * δ^(-(ε/2))) / H.c₀) * (C₁ * δ^(-(ε/2)) * Bpred δ))
+        = (((Cκ / H.c₀) * C₁) * δ^(-ε) * Bpred δ) := by
+      have hpp : (δ^(-(ε/2)) : ℝ) * δ^(-(ε/2)) = δ^(-ε) := hpow
+      calc (((Cκ * δ^(-(ε/2))) / H.c₀) * (C₁ * δ^(-(ε/2)) * Bpred δ))
+          = ((Cκ / H.c₀) * C₁) * (δ^(-(ε/2)) * δ^(-(ε/2))) * Bpred δ := by ring
+        _ = ((Cκ / H.c₀) * C₁) * δ^(-ε) * Bpred δ := by rw [hpp]
+    calc (termLoad T termTube load t δ)^2
+        ≤ ((((Cκ * δ^(-(ε/2))) / H.c₀) * (C₁ * δ^(-(ε/2)) * Bpred δ))) *
+          termLoad T termTube load t δ := hstep1.trans hstep2
+      _ = ((((Cκ / H.c₀) * C₁) * δ^(-ε) * Bpred δ)) *
+          termLoad T termTube load t δ := by rw [heq]
+  -- Sum and factor.
+  have hsum : ∑ t : Fin n, (termLoad T termTube load t δ)^2
+      ≤ ((((Cκ / H.c₀) * C₁) * δ^(-ε) * Bpred δ)) *
+        ∑ t : Fin n, termLoad T termTube load t δ := by
+    have h : ∑ t : Fin n, (termLoad T termTube load t δ)^2
+        ≤ ∑ t : Fin n, (((((Cκ / H.c₀) * C₁) * δ^(-ε) * Bpred δ)) *
+          termLoad T termTube load t δ) :=
+      Finset.sum_le_sum (fun t _ => hsq t)
+    have hfac : ∑ t : Fin n, (((((Cκ / H.c₀) * C₁) * δ^(-ε) * Bpred δ)) *
+          termLoad T termTube load t δ)
+        = ((((Cκ / H.c₀) * C₁) * δ^(-ε) * Bpred δ)) *
+          ∑ t : Fin n, termLoad T termTube load t δ := by
+      rw [Finset.mul_sum]
+    rw [hfac] at h; exact h
+  -- Rewrite to SubpowerLE form.
+  have htotal : ∑ t : Fin n, termLoad T termTube load t δ
+      = totalLoad T load δ :=
+    sum_termLoad_eq_totalLoad T termTube load δ
+  rw [htotal] at hsum
+  have hfinal : ((((Cκ / H.c₀) * C₁) * δ^(-ε) * Bpred δ)) * totalLoad T load δ
+      = ((Cκ / H.c₀) * C₁) * δ^(-ε) * (Bpred δ * totalLoad T load δ) := by ring
+  rw [hfinal] at hsum
+  exact hsum
+
 end FilteredDescent
