@@ -1,5 +1,6 @@
 import Theorems.Thm_FilteredDescent_DescentLabels
 import Theorems.Thm_FilteredDescent_DescentTree
+import Definitions.Def_FilteredDescent_Packet
 import Mathlib.Data.Finset.Card
 
 /-!
@@ -681,5 +682,80 @@ theorem selectedTree_labels {α : Type} [Fintype α] [DecidableEq α]
     rw [this]
   rw [hq_eq, hlab_q, hlab_p]
   exact DescentStateLt.of_step hstep
+
+/-! ## F4b: Markov deletion and source-mass ledger (paper §9.1, (117)) -/
+
+/-- Source-mass ledger at a descent node (paper §9.1): tracks the total,
+deleted, and retained packet mass.  "Every deletion is measured in the
+size-biased incidence mass of the same global source."
+
+- `total`: total source mass at the node;
+- `deleted`: mass removed by Markov deletion (source-small);
+- `retained`: remaining mass after deletion. -/
+structure SourceLedger where
+  total : ℝ
+  deleted : ℝ
+  retained : ℝ
+
+/-- Ledger conservation: retained + deleted = total. -/
+def SourceLedger.conserved (L : SourceLedger) : Prop :=
+  L.retained + L.deleted = L.total
+
+/-- Deleted set: packets where multiplicity exceeds `total / ε`. -/
+noncomputable def markovDelSet {n r : ℕ} (w : Fin n → ℝ)
+    (mult : (Fin r → Fin n) → ℝ) (ε : ℝ) : Finset (Fin r → Fin n) :=
+  Finset.univ.filter (fun U => (∑ V, mult V * packetLaw w V) / ε < mult U)
+
+/-- Retained set: packets where multiplicity is at most `total / ε`. -/
+noncomputable def markovRetSet {n r : ℕ} (w : Fin n → ℝ)
+    (mult : (Fin r → Fin n) → ℝ) (ε : ℝ) : Finset (Fin r → Fin n) :=
+  Finset.univ.filter (fun U => mult U ≤ (∑ V, mult V * packetLaw w V) / ε)
+
+noncomputable def markovDelete {n r : ℕ} (w : Fin n → ℝ)
+    (mult : (Fin r → Fin n) → ℝ) (ε : ℝ) : SourceLedger where
+  total := ∑ U, mult U * packetLaw w U
+  deleted := (markovDelSet w mult ε).sum (fun U => mult U * packetLaw w U)
+  retained := (markovRetSet w mult ε).sum (fun U => mult U * packetLaw w U)
+
+/-- The ledger from Markov deletion is conserved (partition of unity). -/
+theorem markovDelete_conserved {n r : ℕ} (w : Fin n → ℝ)
+    (mult : (Fin r → Fin n) → ℝ) (ε : ℝ) :
+    (markovDelete w mult ε).conserved := by
+  unfold SourceLedger.conserved markovDelete
+  simp only []
+  have hunion : markovRetSet w mult ε ∪ markovDelSet w mult ε = Finset.univ := by
+    ext U
+    simp only [markovRetSet, markovDelSet, Finset.mem_union, Finset.mem_filter,
+      Finset.mem_univ, true_and]
+    rcases lt_or_ge ((∑ V, mult V * packetLaw w V) / ε) (mult U) with h | h
+    · exact iff_of_true (Or.inr h) True.intro
+    · exact iff_of_true (Or.inl h) True.intro
+  have hdisj : Disjoint (markovRetSet w mult ε) (markovDelSet w mult ε) := by
+    unfold markovRetSet markovDelSet
+    rw [Finset.disjoint_filter]
+    intro U _ h1 h2
+    exact absurd (lt_of_le_of_lt h1 h2) (lt_irrefl _)
+  calc (markovRetSet w mult ε).sum (fun U => mult U * packetLaw w U)
+      + (markovDelSet w mult ε).sum (fun U => mult U * packetLaw w U)
+      = ((markovRetSet w mult ε) ∪ (markovDelSet w mult ε)).sum
+        (fun U => mult U * packetLaw w U) := by rw [Finset.sum_union hdisj]
+    _ = ∑ U, mult U * packetLaw w U := by rw [hunion]
+
+/-- Cutoff property (paper (117)): on the retained set, the multiplicity
+is bounded by `total / ε`.  This is the hereditary cutoff `BX`. -/
+theorem markovRetSet_bounded {n r : ℕ} (w : Fin n → ℝ)
+    (mult : (Fin r → Fin n) → ℝ) (ε : ℝ)
+    (U : Fin r → Fin n) (hU : U ∈ markovRetSet w mult ε) :
+    mult U ≤ (∑ V, mult V * packetLaw w V) / ε := by
+  unfold markovRetSet at hU
+  rw [Finset.mem_filter] at hU
+  exact hU.2
+
+/-- Source-small deletion hypothesis (paper (117)): the deleted mass is
+at most `ε` times the total.  In the paper this is achieved by the
+infimum definition of `BX`; here it is the interface property that a
+concrete deletion must satisfy. -/
+def SourceLedger.sourceSmall (L : SourceLedger) (ε : ℝ) : Prop :=
+  L.deleted ≤ ε * L.total
 
 end FilteredDescent
