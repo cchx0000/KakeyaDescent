@@ -890,4 +890,78 @@ theorem agg_hardening {α : Type} [DecidableEq α] {n : ℕ}
           exact_mod_cast h
         apply mul_le_mul_of_nonneg_right hcard hsupB
 
+/-! ## F5: Faithful bridge to the gate -/
+
+/-- If `a :: q <+: s :: r` then `a = s` and `q <+: r`. -/
+theorem cons_prefix_drop {α : Type} {a s : α} {q r : List α}
+    (h : (a :: q) <+: (s :: r)) : a = s ∧ q <+: r := by
+  obtain ⟨t, ht⟩ := h
+  -- (a :: q) ++ t = s :: r
+  have h1 : a = s ∧ q ++ t = r := by
+    have heq : (a :: q) ++ t = s :: r := ht
+    rw [List.cons_append] at heq
+    exact ⟨by simpa using congrArg List.head? heq, by simpa using congrArg List.tail heq⟩
+  exact ⟨h1.1, ⟨t, h1.2⟩⟩
+
+/-- Prefix-closure for the selected tree: nonempty prefixes of tree
+paths are in the tree.  (The empty prefix `[]` is not in the
+`[s]`-rooted tree; the `[]`-rooted version is defined below.) -/
+theorem selectedTree_prefix {α : Type} [Fintype α] [DecidableEq α]
+    {n r : ℕ} (s : DescentState α n) :
+    ∀ (selOf : DescentState α n → PacketSelect α n r)
+    (p : List (DescentState α n)) (_ : p ∈ selectedTree s selOf)
+    (q : List (DescentState α n)) (_ : q <+: p) (_ : q ≠ []),
+    q ∈ selectedTree s selOf := by
+  induction s using WellFounded.induction DescentStep.wellFounded with
+  | _ s ih =>
+    intro selOf p hp q hqp hq
+    rw [selectedTree_unfold] at hp
+    rw [Finset.mem_union] at hp
+    rcases hp with hp | hp
+    · -- p = [s]: q <+: [s], q ≠ [] → q = [s]
+      rw [Finset.mem_singleton] at hp
+      rw [hp] at hqp
+      have hqeq : q = [s] := by
+        rcases q with _ | ⟨a, rest⟩
+        · exact absurd rfl hq
+        · -- q = a :: rest <+: [s], so rest = [] and a = s
+          have h1 : (a :: rest).length ≤ [s].length := List.IsPrefix.length_le hqp
+          simp at h1
+          have h2 : rest = [] := by
+            cases rest with
+            | nil => rfl
+            | cons _ _ => simp at h1
+          rw [h2] at hqp ⊢
+          simp at hqp
+          rw [hqp]
+      rw [hqeq]
+      rw [selectedTree_unfold]
+      exact Finset.mem_union_left _ (Finset.mem_singleton_self [s])
+    · -- p = s :: r', r' ∈ selectedTree t
+      rw [Finset.mem_biUnion] at hp
+      obtain ⟨⟨t, ht⟩, _, hp⟩ := hp
+      rw [Finset.mem_image] at hp
+      obtain ⟨r', hr', rfl⟩ := hp
+      -- q <+: s :: r', q ≠ [] → q = s :: q' with q' <+: r'
+      rcases q with _ | ⟨a, q'⟩
+      · exact absurd rfl hq
+      · obtain ⟨ha, hqp'⟩ := cons_prefix_drop hqp
+        have hstep : DescentStep t s :=
+          packetChildren_are_steps s (selOf s) t ht
+        by_cases hq' : q' = []
+        · -- q = [s]
+          rw [ha, hq']
+          rw [selectedTree_unfold]
+          exact Finset.mem_union_left _ (Finset.mem_singleton_self [s])
+        · -- q' ≠ [], q' <+: r', so by IH q' ∈ selectedTree t
+          have hq'mem : q' ∈ selectedTree t selOf :=
+            ih t hstep selOf r' hr' q' hqp' hq'
+          rw [ha]
+          rw [selectedTree_unfold]
+          apply Finset.mem_union_right
+          rw [Finset.mem_biUnion]
+          refine ⟨⟨t, ht⟩, Finset.mem_attach _ _, ?_⟩
+          rw [Finset.mem_image]
+          exact ⟨q', hq'mem, rfl⟩
+
 end FilteredDescent
