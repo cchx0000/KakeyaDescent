@@ -1,4 +1,5 @@
 import Theorems.Thm_FilteredDescent_DescentInduction
+import Theorems.Thm_FilteredDescent_DescentBounds
 import Definitions.Def_FilteredDescent_PhysicalTubes
 import Mathlib.Data.Real.Basic
 
@@ -83,11 +84,12 @@ the tree load `N(δ)` with the tube-family shading sum; dividing by `N(δ)`
 
 Every hypothesis is consumed; the remaining named inputs are (1)–(5) in
 the module docstring. -/
-theorem scalar_closure_discharged {n : ℕ} (S : ShadedTubes n)
-    (T : Finset (List (Fin n))) (hroot : [] ∈ T)
-    (hprefix : ∀ l ∈ T, ∀ p : List (Fin n), p <+: l → p ∈ T)
-    (lab : List (Fin n) → ℕ × ℕ × ℕ) (hlab : DescentLabels T lab)
-    (termTube : List (Fin n) → Fin n) (load : List (Fin n) → ℝ → ℝ)
+theorem scalar_closure_discharged {α : Type} [DecidableEq α] {n : ℕ}
+    (S : ShadedTubes n)
+    (T : Finset (List α)) (hroot : [] ∈ T)
+    (hprefix : ∀ l ∈ T, ∀ p : List α, p <+: l → p ∈ T)
+    (lab : List α → ℕ × ℕ × ℕ) (hlab : DescentLabels T lab)
+    (termTube : List α → Fin n) (load : List α → ℝ → ℝ)
     (hload : ∀ γ ∈ treeLeaves T, ∀ δ : ℝ, 0 < δ → δ < 1 → 0 ≤ load γ δ)
     (htotalLoad : ∀ δ, totalLoad T load δ = ∑ t, S.shadeVol t δ)
     (leaf_bound : ∀ γ ∈ treeLeaves T, ∀ δ : ℝ, 0 < δ → δ < 1 →
@@ -155,13 +157,13 @@ theorem scalar_closure_discharged {n : ℕ} (S : ShadedTubes n)
 to the real physical tube model (`physicalRealization`, Lebesgue-measurable
 shading).  The abstract `ShadedTubes` interface is discharged by genuine
 geometry; the predecessor invariance is discharged by the descent. -/
-theorem scalar_closure_discharged_physical {n d : ℕ}
+theorem scalar_closure_discharged_physical {α : Type} [DecidableEq α] {n d : ℕ}
     (fam : TubeFamily n d) (sh : Shading fam)
     (hpos : ∀ δ, 0 < δ → δ < 1 → 0 < (volume (⋃ t, sh.Y t δ)).toReal)
-    (T : Finset (List (Fin n))) (hroot : [] ∈ T)
-    (hprefix : ∀ l ∈ T, ∀ p : List (Fin n), p <+: l → p ∈ T)
-    (lab : List (Fin n) → ℕ × ℕ × ℕ) (hlab : DescentLabels T lab)
-    (termTube : List (Fin n) → Fin n) (load : List (Fin n) → ℝ → ℝ)
+    (T : Finset (List α)) (hroot : [] ∈ T)
+    (hprefix : ∀ l ∈ T, ∀ p : List α, p <+: l → p ∈ T)
+    (lab : List α → ℕ × ℕ × ℕ) (hlab : DescentLabels T lab)
+    (termTube : List α → Fin n) (load : List α → ℝ → ℝ)
     (hload : ∀ γ ∈ treeLeaves T, ∀ δ : ℝ, 0 < δ → δ < 1 → 0 ≤ load γ δ)
     (htotalLoad : ∀ δ, totalLoad T load δ =
       ∑ t, (physicalRealization fam sh hpos).shadeVol t δ)
@@ -186,5 +188,168 @@ theorem scalar_closure_discharged_physical {n d : ℕ}
   scalar_closure_discharged (physicalRealization fam sh hpos) T hroot hprefix
     lab hlab termTube load hload htotalLoad leaf_bound
     terminal_hardening geom_pair
+
+/-- Scalar closure on the *constructed* symmetric tree (Stream F, M5).
+
+Instantiates the general `scalar_closure_discharged` (`α = DMark n B`)
+with `T = descTree n B H₀ C₀`, discharging every hypothesis from the
+construction:
+- root/prefix/labels: `descTree_root`, `descTree_prefix`, `descTree_labels`;
+- `hload`: `descentLoad_nonneg`;
+- `htotalLoad`: `htotalLoad_symm` at `[]` plus `root_fiber_card`
+  (`Dx [] t = shadeVol t`);
+- `leaf_bound`: `leaf_bound_proved`;
+- `terminal_hardening`: `terminal_hardening_symm` via `termLoad_reroot_Dx`,
+  lifted by `SubpowerLE.of_le_const`;
+- `geom_pair`: `geom_pair_symm` via `termLoad_reroot_Dx`, lifted by
+  `SubpowerLE.of_le_const` with `K = n - 1`.
+
+Honesty: the symmetric `geom_pair_symm` is crude (constant `n-1`), so
+this is a model-validation closure, not the paper's sharp (53)/(177)/(81)
+estimate (which remains an external input to the main gate). -/
+theorem scalar_closure_constructed {n B H₀ C₀ : ℕ} (hn : 0 < n) (hB : 0 < B)
+    (hC : 0 < C₀) (S : ShadedTubes n) :
+    SubpowerLE (fun δ => ∑ t, S.shadeVol t δ) S.unionVol := by
+  have hBpow : (0:ℝ) < (B ^ H₀ : ℝ) := by
+    have h1 : 0 < B ^ H₀ := Nat.pow_pos hB
+    exact_mod_cast h1
+  have hU_nonneg : ∀ δ : ℝ, 0 < δ → δ < 1 → 0 ≤ S.unionVol δ := by
+    intro δ hδ1 hδ2
+    have h1 := S.shade_nonneg (⟨0, hn⟩ : Fin n) δ hδ1 hδ2
+    have h2 := S.shade_le_union (⟨0, hn⟩ : Fin n) δ hδ1 hδ2
+    linarith
+  have hDx_sum_nonneg : ∀ (x : List (DMark n B)) (δ : ℝ), 0 < δ → δ < 1 →
+      0 ≤ ∑ t : Fin n, Dx (C₀ := C₀) H₀ S δ hn x t := by
+    intro x δ hδ1 hδ2
+    apply Finset.sum_nonneg
+    intro t _
+    exact Dx_nonneg hn hB S δ hδ1 hδ2 x t
+  have hload : ∀ γ ∈ treeLeaves (descTree n B H₀ C₀), ∀ δ : ℝ, 0 < δ → δ < 1 →
+      0 ≤ descentLoad H₀ S δ hn γ := by
+    intro γ hγ δ hδ1 hδ2
+    exact descentLoad_nonneg S δ hδ1 hδ2 hn hγ hBpow
+  have htotalLoad : ∀ δ : ℝ,
+      totalLoad (descTree n B H₀ C₀) (fun γ δ => descentLoad H₀ S δ hn γ) δ
+        = ∑ t, S.shadeVol t δ := by
+    intro δ
+    have h1 : totalLoad (descTree n B H₀ C₀) (fun γ δ => descentLoad H₀ S δ hn γ) δ
+        = ∑ t : Fin n, Dx (B := B) (C₀ := C₀) H₀ S δ hn [] t := by
+      have h2 := htotalLoad_symm (B := B) (H₀ := H₀) (C₀ := C₀) hn S δ []
+      rw [reroot_empty] at h2
+      have heq : totalLoad (descTree n B H₀ C₀) (fun γ δ => descentLoad H₀ S δ hn γ) δ
+          = totalLoad (descTree n B H₀ C₀)
+            (fun s δ' => descentLoad H₀ S δ' hn ([] ++ s)) δ := rfl
+      rw [heq]
+      exact h2.symm
+    rw [h1]
+    apply Finset.sum_congr rfl
+    intro t _
+    rw [Dx_eq hn S δ [] t, root_fiber_card hn hB hC t]
+    push_cast
+    have hne : ((B : ℝ) ^ H₀) ≠ 0 := by
+      have h1 : (0:ℝ) < (B : ℝ) ^ H₀ := by
+        have h2 : (0:ℝ) < (B : ℝ) := by exact_mod_cast hB
+        exact pow_pos h2 H₀
+      exact ne_of_gt h1
+    rw [div_eq_mul_inv, mul_left_comm, mul_inv_cancel₀ hne, mul_one]
+  have hleaf : ∀ γ ∈ treeLeaves (descTree n B H₀ C₀), ∀ δ : ℝ, 0 < δ → δ < 1 →
+      descentLoad H₀ S δ hn γ ≤ S.unionVol δ := by
+    intro γ hγ δ hδ1 hδ2
+    exact leaf_bound_proved S δ hδ1 hδ2 hn (by omega) hγ
+  have hterm : ∀ x ∈ descTree n B H₀ C₀, SubpowerLE
+      (fun δ => ∑ t : Fin n, (termLoad (reroot (descTree n B H₀ C₀) x)
+        (fun s => termTube hn (x ++ s))
+        (fun s δ => descentLoad H₀ S δ hn (x ++ s)) t δ) ^ 2)
+      (fun δ => S.unionVol δ * totalLoad (reroot (descTree n B H₀ C₀) x)
+        (fun s δ => descentLoad H₀ S δ hn (x ++ s)) δ) := by
+    intro x hx
+    have hsub : SubpowerLE
+        (fun δ => ∑ t : Fin n, (Dx (C₀ := C₀) H₀ S δ hn x t)^2)
+        (fun δ => S.unionVol δ * ∑ t : Fin n, Dx (C₀ := C₀) H₀ S δ hn x t) := by
+      apply SubpowerLE.of_le_const (K := 1) zero_le_one
+      · intro δ hδ1 hδ2
+        have h := terminal_hardening_symm (H₀ := H₀) hn hB hC S δ hδ1 hδ2 x
+        simpa using h
+      · intro δ hδ1 hδ2
+        exact mul_nonneg (hU_nonneg δ hδ1 hδ2) (hDx_sum_nonneg x δ hδ1 hδ2)
+    have hfun1 : (fun δ => ∑ t : Fin n, (termLoad (reroot (descTree n B H₀ C₀) x)
+          (fun s => termTube hn (x ++ s))
+          (fun s δ => descentLoad H₀ S δ hn (x ++ s)) t δ) ^ 2)
+        = (fun δ => ∑ t : Fin n, (Dx (C₀ := C₀) H₀ S δ hn x t)^2) := by
+      funext δ
+      apply Finset.sum_congr rfl
+      intro t _
+      congr 1
+      exact termLoad_reroot_Dx hn S δ x t
+    have hfun2 : (fun δ => S.unionVol δ * totalLoad (reroot (descTree n B H₀ C₀) x)
+          (fun s δ => descentLoad H₀ S δ hn (x ++ s)) δ)
+        = (fun δ => S.unionVol δ * ∑ t : Fin n, Dx (C₀ := C₀) H₀ S δ hn x t) := by
+      funext δ
+      rw [htotalLoad_symm hn S δ x]
+    rw [hfun1, hfun2]
+    exact hsub
+  have hgeom : ∀ x ∈ descTree n B H₀ C₀, SubpowerLE
+      (fun δ => ∑ t : Fin n, ∑ t' : Fin n,
+        if t ≠ t' then termLoad (reroot (descTree n B H₀ C₀) x)
+          (fun s => termTube hn (x ++ s))
+          (fun s δ => descentLoad H₀ S δ hn (x ++ s)) t δ
+          * termLoad (reroot (descTree n B H₀ C₀) x)
+          (fun s => termTube hn (x ++ s))
+          (fun s δ => descentLoad H₀ S δ hn (x ++ s)) t' δ
+        else 0)
+      (fun δ => S.unionVol δ * totalLoad (reroot (descTree n B H₀ C₀) x)
+        (fun s δ => descentLoad H₀ S δ hn (x ++ s)) δ) := by
+    intro x hx
+    have hK : (0:ℝ) ≤ (n : ℝ) - 1 := by
+      have h1 : (1:ℝ) ≤ (n : ℝ) := by exact_mod_cast hn
+      linarith
+    have hsub : SubpowerLE
+        (fun δ => ∑ t : Fin n, ∑ t' : Fin n,
+          (if t ≠ t' then Dx (C₀ := C₀) H₀ S δ hn x t
+            * Dx (C₀ := C₀) H₀ S δ hn x t' else 0))
+        (fun δ => S.unionVol δ * ∑ t : Fin n, Dx (C₀ := C₀) H₀ S δ hn x t) := by
+      apply SubpowerLE.of_le_const (K := (n : ℝ) - 1) hK
+      · intro δ hδ1 hδ2
+        have h := geom_pair_symm (H₀ := H₀) hn hB hC S δ hδ1 hδ2 x
+        have hrw : ((n : ℝ) - 1) * S.unionVol δ
+            * ∑ t : Fin n, Dx (C₀ := C₀) H₀ S δ hn x t
+          = ((n : ℝ) - 1) * (S.unionVol δ
+            * ∑ t : Fin n, Dx (C₀ := C₀) H₀ S δ hn x t) := by ring
+        rw [hrw] at h
+        exact h
+      · intro δ hδ1 hδ2
+        exact mul_nonneg (hU_nonneg δ hδ1 hδ2) (hDx_sum_nonneg x δ hδ1 hδ2)
+    have hfun1 : (fun δ => ∑ t : Fin n, ∑ t' : Fin n,
+          if t ≠ t' then termLoad (reroot (descTree n B H₀ C₀) x)
+            (fun s => termTube hn (x ++ s))
+            (fun s δ => descentLoad H₀ S δ hn (x ++ s)) t δ
+            * termLoad (reroot (descTree n B H₀ C₀) x)
+            (fun s => termTube hn (x ++ s))
+            (fun s δ => descentLoad H₀ S δ hn (x ++ s)) t' δ
+          else 0)
+        = (fun δ => ∑ t : Fin n, ∑ t' : Fin n,
+          (if t ≠ t' then Dx (C₀ := C₀) H₀ S δ hn x t
+            * Dx (C₀ := C₀) H₀ S δ hn x t' else 0)) := by
+      funext δ
+      apply Finset.sum_congr rfl
+      intro t _
+      apply Finset.sum_congr rfl
+      intro t' _
+      by_cases hne : t ≠ t'
+      · rw [if_pos hne, if_pos hne,
+          termLoad_reroot_Dx hn S δ x t, termLoad_reroot_Dx hn S δ x t']
+      · rw [if_neg hne, if_neg hne]
+    have hfun2 : (fun δ => S.unionVol δ * totalLoad (reroot (descTree n B H₀ C₀) x)
+          (fun s δ => descentLoad H₀ S δ hn (x ++ s)) δ)
+        = (fun δ => S.unionVol δ * ∑ t : Fin n, Dx (C₀ := C₀) H₀ S δ hn x t) := by
+      funext δ
+      rw [htotalLoad_symm hn S δ x]
+    rw [hfun1, hfun2]
+    exact hsub
+  exact scalar_closure_discharged (α := DMark n B) S (descTree n B H₀ C₀)
+    descTree_root (fun l hl p hpp => descTree_prefix hl hpp)
+    (dlab n H₀ C₀) descTree_labels
+    (termTube hn) (fun γ δ => descentLoad H₀ S δ hn γ)
+    hload htotalLoad hleaf hterm hgeom
 
 end FilteredDescent

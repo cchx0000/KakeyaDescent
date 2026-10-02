@@ -81,4 +81,28 @@ theorem SubpowerLE.of_double {x y : ℝ → ℝ}
   calc x δ ≤ C * δ ^ (-ε) * (y δ + y δ) := hb δ hδ0 hδ1
     _ = (2 * C) * δ ^ (-ε) * y δ := by ring
 
+/-- Pointwise bound with a constant lifts to `SubpowerLE`: from
+`f δ ≤ K * g δ` on `(0,1)` with `K ≥ 0` and `g ≥ 0`, take `C = K` and use
+`δ ^ (-ε) ≥ 1`. -/
+theorem SubpowerLE.of_le_const {f g : ℝ → ℝ} {K : ℝ}
+    (hK : 0 ≤ K)
+    (hf : ∀ δ : ℝ, 0 < δ → δ < 1 → f δ ≤ K * g δ)
+    (hg : ∀ δ : ℝ, 0 < δ → δ < 1 → 0 ≤ g δ) :
+    SubpowerLE f g := by
+  intro ε hε
+  refine ⟨K, hK, fun δ hδ0 hδ1 => ?_⟩
+  have hge : 1 ≤ δ ^ (-ε) := by
+    have h1 : δ ^ ε ≤ 1 := Real.rpow_le_one hδ0.le hδ1.le hε.le
+    have h2 : (0:ℝ) < δ ^ ε := Real.rpow_pos_of_pos hδ0 ε
+    rw [Real.rpow_neg hδ0.le]
+    exact (one_le_inv_iff₀).mpr ⟨h2, h1⟩
+  have hfg := hf δ hδ0 hδ1
+  have hgδ := hg δ hδ0 hδ1
+  calc f δ ≤ K * g δ := hfg
+    _ ≤ K * (δ ^ (-ε) * g δ) := by
+        apply mul_le_mul_of_nonneg_left _ hK
+        calc g δ = 1 * g δ := (one_mul _).symm
+          _ ≤ δ ^ (-ε) * g δ := mul_le_mul_of_nonneg_right hge hgδ
+    _ = K * δ ^ (-ε) * g δ := by ring
+
 end FilteredDescent

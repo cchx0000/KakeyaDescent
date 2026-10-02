@@ -267,4 +267,40 @@ theorem htotalLoad_symm (hn : 0 < n)
   unfold nodeAgg
   rw [Finset.sum_filter]
 
+/-- `termLoad` on the rerooted tree is `Dx`: reindex via
+`reroot_sum_leaves`, using `x ++ γ.drop x.length = γ` on the fiber. -/
+theorem termLoad_reroot_Dx (hn : 0 < n)
+    (S : ShadedTubes n) (δ : ℝ) (x : List (DMark n B)) (t : Fin n) :
+    termLoad (reroot (descTree n B H₀ C₀) x) (fun s => termTube hn (x ++ s))
+      (fun s δ' => descentLoad H₀ S δ' hn (x ++ s)) t δ
+      = Dx (C₀ := C₀) H₀ S δ hn x t := by
+  have hLHS : termLoad (reroot (descTree n B H₀ C₀) x)
+        (fun s => termTube hn (x ++ s))
+        (fun s δ' => descentLoad H₀ S δ' hn (x ++ s)) t δ
+      = ∑ s ∈ treeLeaves (reroot (descTree n B H₀ C₀) x),
+        (fun s => if termTube hn (x ++ s) = t
+          then descentLoad H₀ S δ hn (x ++ s) else 0) s := by
+    unfold termLoad
+    rw [Finset.sum_filter]
+  rw [hLHS,
+    reroot_sum_leaves (descTree n B H₀ C₀) x
+      (fun s => if termTube hn (x ++ s) = t
+        then descentLoad H₀ S δ hn (x ++ s) else 0)]
+  have hRHS : ∀ γ ∈ (treeLeaves (descTree n B H₀ C₀)).filter (fun γ => x <+: γ),
+      (fun s => if termTube hn (x ++ s) = t
+        then descentLoad H₀ S δ hn (x ++ s) else 0) (γ.drop x.length)
+      = (if termTube hn γ = t then descentLoad H₀ S δ hn γ else 0) := by
+    intro γ hγ
+    have hpre : x <+: γ := (Finset.mem_filter.mp hγ).2
+    have heq : x ++ γ.drop x.length = γ := append_drop_of_prefix hpre
+    simp only []
+    rw [heq]
+  rw [Finset.sum_congr rfl (fun γ hγ => hRHS γ hγ),
+    ← Finset.sum_filter, Finset.filter_filter]
+  show ∑ a ∈ (treeLeaves (descTree n B H₀ C₀)).filter
+      (fun a => x <+: a ∧ termTube hn a = t), descentLoad H₀ S δ hn a
+    = ∑ γ ∈ fiberFinset (B := B) (H₀ := H₀) (C₀ := C₀) hn x t,
+      descentLoad H₀ S δ hn γ
+  rfl
+
 end FilteredDescent
