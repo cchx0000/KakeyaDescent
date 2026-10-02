@@ -547,4 +547,90 @@ noncomputable def hardeningInputsAt {α : Type} [Fintype α] [DecidableEq α]
   hc₀ := L.hc₀
   hcard := L.hcard
 
+/-! ## Per-node hypothesis types for P1-4 integration -/
+
+/-- Per-node link hypothesis type (paper (150)-(151)), for the re-rooted
+subtree at `x`, with `HardeningInputs` derived from the single ledger `L`. -/
+def NodeHLink {α : Type} [Fintype α] [DecidableEq α] {n : ℕ}
+    {T : Finset (List α)} (L : HardeningLedger α (n := n) T)
+    (x : List α) (hx : x ∈ T)
+    (termTube : List α → Fin n) (load : List α → ℝ → ℝ)
+    (Bpred : ℝ → ℝ) : Prop :=
+  ∀ (k : L.K) (t : Fin n) (δ : ℝ), 0 < δ → δ < 1 →
+    ∑ b ∈ Finset.univ.filter
+      (fun b : Fin (treeChildren (reroot T x) []).card =>
+        L.clsAt x hx b = k ∧
+          0 < rootChildDb (reroot T x) (fun s => termTube (x ++ s))
+            (fun s δ => load (x ++ s) δ) b t δ),
+      rootChildDb (reroot T x) (fun s => termTube (x ++ s))
+        (fun s δ => load (x ++ s) δ) b t δ
+      ≤ Bpred δ * ∑ U ∈ L.A k,
+        (if U (L.slotOf k) = t then packetLaw (L.w k) U else 0)
+
+/-- Per-node quantum hypothesis type (paper (152)-(153)). -/
+def NodeHQuant {α : Type} [Fintype α] [DecidableEq α] {n : ℕ}
+    {T : Finset (List α)} (L : HardeningLedger α (n := n) T)
+    (x : List α) (hx : x ∈ T)
+    (termTube : List α → Fin n) (load : List α → ℝ → ℝ)
+    (Bpred : ℝ → ℝ) : Prop :=
+  ∀ (k : L.K) (b : Fin (treeChildren (reroot T x) []).card)
+    (t : Fin n) (δ : ℝ),
+    0 < δ → δ < 1 → L.clsAt x hx b = k →
+    0 < rootChildDb (reroot T x) (fun s => termTube (x ++ s))
+      (fun s δ => load (x ++ s) δ) b t δ →
+    L.c₀ * Bpred δ ≤
+      rootChildDb (reroot T x) (fun s => termTube (x ++ s))
+        (fun s δ => load (x ++ s) δ) b t δ
+
+/-- Bridge: `NodeHLink` from the ledger provides the `hlink` hypothesis
+needed by `node_hardening_subpower` for the derived `HardeningInputs`. -/
+theorem nodeHLink_to_hlink {α : Type} [Fintype α] [DecidableEq α] {n : ℕ}
+    {T : Finset (List α)} (L : HardeningLedger α (n := n) T)
+    (x : List α) (hx : x ∈ T)
+    (termTube : List α → Fin n) (load : List α → ℝ → ℝ)
+    (Bpred : ℝ → ℝ)
+    (h : NodeHLink L x hx termTube load Bpred) :
+    ∀ k t δ, 0 < δ → δ < 1 →
+      ∑ b ∈ Finset.univ.filter
+        (fun b : Fin (treeChildren (reroot T x) []).card =>
+          (hardeningInputsAt L x hx).cls b = k ∧
+            0 < rootChildDb (reroot T x) (fun s => termTube (x ++ s))
+              (fun s δ => load (x ++ s) δ) b t δ),
+        rootChildDb (reroot T x) (fun s => termTube (x ++ s))
+          (fun s δ => load (x ++ s) δ) b t δ
+        ≤ Bpred δ * ∑ U ∈ (hardeningInputsAt L x hx).A k,
+          (if U ((hardeningInputsAt L x hx).slotOf k) = t
+           then packetLaw ((hardeningInputsAt L x hx).w k) U else 0) := by
+  intro k t δ hδ0 hδ1
+  have h2 := h k t δ hδ0 hδ1
+  -- Unfold the derived HardeningInputs projections.
+  have ecls : (hardeningInputsAt L x hx).cls = L.clsAt x hx := rfl
+  have eA : (hardeningInputsAt L x hx).A = L.A := rfl
+  have eslot : (hardeningInputsAt L x hx).slotOf = L.slotOf := rfl
+  have ew : (hardeningInputsAt L x hx).w = L.w := rfl
+  rw [ecls, eA, eslot, ew]
+  exact h2
+
+/-- Bridge: `NodeHQuant` provides the `hquant` hypothesis. -/
+theorem nodeHQuant_to_hquant {α : Type} [Fintype α] [DecidableEq α] {n : ℕ}
+    {T : Finset (List α)} (L : HardeningLedger α (n := n) T)
+    (x : List α) (hx : x ∈ T)
+    (termTube : List α → Fin n) (load : List α → ℝ → ℝ)
+    (Bpred : ℝ → ℝ)
+    (h : NodeHQuant L x hx termTube load Bpred) :
+    ∀ k (b : Fin (treeChildren (reroot T x) []).card) t δ,
+      0 < δ → δ < 1 → (hardeningInputsAt L x hx).cls b = k →
+      0 < rootChildDb (reroot T x) (fun s => termTube (x ++ s))
+        (fun s δ => load (x ++ s) δ) b t δ →
+      (hardeningInputsAt L x hx).c₀ * Bpred δ ≤
+        rootChildDb (reroot T x) (fun s => termTube (x ++ s))
+          (fun s δ => load (x ++ s) δ) b t δ := by
+  intro k b t δ hδ0 hδ1 hcls hpos
+  have ecls : (hardeningInputsAt L x hx).cls = L.clsAt x hx := rfl
+  have ec0 : (hardeningInputsAt L x hx).c₀ = L.c₀ := rfl
+  rw [ecls] at hcls
+  have h2 := h k b t δ hδ0 hδ1 hcls hpos
+  rw [ec0]
+  exact h2
+
 end FilteredDescent
