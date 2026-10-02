@@ -205,4 +205,125 @@ theorem node_hardening_via_streamB {α : Type} [Fintype α] [DecidableEq α]
   intro δ
   rw [sum_termLoad_eq_totalLoad]
 
+/-! ## P1-4: Subpower-fused node hardening -/
+
+/-- Rpow product: `δ^{-ε/2} * δ^{-ε/2} = δ^{-ε}` for `δ > 0`. -/
+theorem rpow_half_add (δ ε : ℝ) (hδ0 : 0 < δ) :
+    δ ^ (-(ε/2)) * δ ^ (-(ε/2)) = δ ^ (-ε) := by
+  rw [← Real.rpow_add hδ0]
+  congr 1
+  ring
+
+/-- Class-count bound (paper (153), from (150)-(151)): `histCount ≤ card K / c₀`.
+
+Uses ORIGINAL `hlink`/`hquant` with `Bpred` (not inflated); independent of
+the (149) predecessor bound. Adapted from stream B's `hFk`/`hFbound`. -/
+theorem histCount_le_card_div {n : ℕ} {K : Type*} [Fintype K] [DecidableEq K]
+    {m r : ℕ} (Db : Fin m → Fin n → ℝ → ℝ)
+    (_hDb_nn : ∀ b t δ, 0 < δ → δ < 1 → 0 ≤ Db b t δ)
+    (Bpred : ℝ → ℝ) (hBpred_nn : ∀ δ, 0 < δ → δ < 1 → 0 ≤ Bpred δ)
+    (cls : Fin m → K) (slotOf : K → Fin r) (hr : 0 < r)
+    (w : K → Fin n → ℝ) (hw : ∀ k i, 0 ≤ w k i) (hW : ∀ k, 0 < ∑ i, w k i)
+    (A : K → Finset (Fin r → Fin n)) (hAne : ∀ k, (A k).Nonempty)
+    (α : K → ℝ) (hα : ∀ k, α k = retainedMass (w k) (A k))
+    (hαpos : ∀ k, 0 < α k)
+    (hlink : ∀ k t δ, 0 < δ → δ < 1 →
+      ∑ b ∈ Finset.univ.filter (fun b : Fin m => cls b = k ∧ 0 < Db b t δ),
+        Db b t δ
+        ≤ Bpred δ * ∑ U ∈ A k,
+          (if U (slotOf k) = t then packetLaw (w k) U else 0))
+    (c₀ : ℝ) (hc₀ : 0 < c₀)
+    (hquant : ∀ k (b : Fin m) t δ, 0 < δ → δ < 1 → cls b = k →
+      0 < Db b t δ → c₀ * Bpred δ ≤ Db b t δ)
+    (t : Fin n) (δ : ℝ) (hδ0 : 0 < δ) (hδ1 : δ < 1) :
+    histCount Db t δ ≤ (Fintype.card K : ℝ) / c₀ := by
+  -- Per-class: classCount ≤ 1/c₀ (stream B's hFk).
+  have hmass : ∀ k : K, ∀ t : Fin n,
+      ∑ U ∈ A k, (if U (slotOf k) = t then packetLaw (w k) U else 0)
+        ≤ w k t / ∑ i, w k i := by
+    intro k t
+    have hr5 := (r5_marginal_bound hr (w k) (hw k) (hW k) (slotOf k) t).2
+      (A k) (hAne k) (α k) (hα k) (hαpos k)
+    have hαne : α k ≠ 0 := ne_of_gt (hαpos k)
+    have hle := (div_le_iff₀ (hαpos k)).mp hr5
+    have hcan : (1 / α k) * (w k t / ∑ i, w k i) * α k
+        = w k t / ∑ i, w k i := by
+      calc (1 / α k) * (w k t / ∑ i, w k i) * α k
+          = (w k t / ∑ i, w k i) * ((1 / α k) * α k) := by ring
+        _ = (w k t / ∑ i, w k i) * 1 := by rw [one_div_mul_cancel hαne]
+        _ = w k t / ∑ i, w k i := by ring
+    exact hle.trans_eq hcan
+  have hFk : ∀ k : K, classCount Db cls k t δ ≤ 1 / c₀ := by
+    intro k
+    have hup :
+        ∑ b ∈ Finset.univ.filter (fun b : Fin m => cls b = k ∧ 0 < Db b t δ),
+          Db b t δ
+          ≤ Bpred δ * (w k t / ∑ i, w k i) :=
+      (hlink k t δ hδ0 hδ1).trans
+        (mul_le_mul_of_nonneg_left (hmass k t) (hBpred_nn δ hδ0 hδ1))
+    have hlow : classCount Db cls k t δ * (c₀ * Bpred δ)
+        ≤ ∑ b ∈ Finset.univ.filter (fun b : Fin m => cls b = k ∧ 0 < Db b t δ),
+          Db b t δ := by
+      have h := Finset.card_nsmul_le_sum
+        (Finset.univ.filter (fun b : Fin m => cls b = k ∧ 0 < Db b t δ))
+        (fun b => Db b t δ) (c₀ * Bpred δ) (by
+          intro b hb
+          rw [Finset.mem_filter] at hb
+          exact hquant k b t δ hδ0 hδ1 hb.2.1 hb.2.2)
+      rw [nsmul_eq_mul] at h
+      unfold classCount
+      exact h
+    rcases eq_or_lt_of_le (hBpred_nn δ hδ0 hδ1) with hB0 | hBpos
+    · -- Bpred = 0: class count is 0.
+      have hSk : Finset.univ.filter (fun b : Fin m => cls b = k ∧ 0 < Db b t δ)
+          = ∅ := by
+        rw [Finset.filter_eq_empty_iff]
+        intro b _
+        simp only [not_and]
+        intro hcls hbpos
+        -- ∑ Db ≤ 0 (from hup with Bpred=0), but Db b t δ > 0 and others ≥ 0.
+        have hsum0 : ∑ b' ∈ Finset.univ.filter
+            (fun b' : Fin m => cls b' = k ∧ 0 < Db b' t δ), Db b' t δ ≤ 0 := by
+          calc ∑ b' ∈ Finset.univ.filter
+                (fun b' : Fin m => cls b' = k ∧ 0 < Db b' t δ), Db b' t δ
+              ≤ Bpred δ * (w k t / ∑ i, w k i) := hup
+            _ = 0 := by rw [← hB0]; ring
+        have hmem : b ∈ Finset.univ.filter
+            (fun b' : Fin m => cls b' = k ∧ 0 < Db b' t δ) :=
+          Finset.mem_filter.mpr ⟨Finset.mem_univ b, hcls, hbpos⟩
+        have hpos_sum : 0 < ∑ b' ∈ Finset.univ.filter
+            (fun b' : Fin m => cls b' = k ∧ 0 < Db b' t δ), Db b' t δ := by
+          apply Finset.sum_pos'
+          · intro b' hb'
+            rw [Finset.mem_filter] at hb'
+            exact le_of_lt hb'.2.2
+          · exact ⟨b, hmem, hbpos⟩
+        linarith
+      unfold classCount
+      rw [hSk, Finset.card_empty, Nat.cast_zero]
+      exact div_nonneg zero_le_one (le_of_lt hc₀)
+    · have hchain : classCount Db cls k t δ * (c₀ * Bpred δ)
+          ≤ Bpred δ * (w k t / ∑ i, w k i) := hlow.trans hup
+      have h2 : (classCount Db cls k t δ * c₀) * Bpred δ
+          ≤ (w k t / ∑ i, w k i) * Bpred δ := by
+        calc (classCount Db cls k t δ * c₀) * Bpred δ
+            = classCount Db cls k t δ * (c₀ * Bpred δ) := by ring
+          _ ≤ Bpred δ * (w k t / ∑ i, w k i) := hchain
+          _ = (w k t / ∑ i, w k i) * Bpred δ := by ring
+      have hstep : classCount Db cls k t δ * c₀ ≤ w k t / ∑ i, w k i :=
+        le_of_mul_le_mul_right h2 hBpos
+      have hY1 : w k t / ∑ i, w k i ≤ 1 :=
+        div_le_one_of_le₀
+          (Finset.single_le_sum (fun i _ => hw k i) (Finset.mem_univ t))
+          (le_of_lt (hW k))
+      exact (le_div_iff₀ hc₀).mpr (hstep.trans hY1)
+  -- Sum over K.
+  rw [histCount_eq_sum_classCount (K := K) (cls := cls)]
+  calc ∑ k : K, classCount Db cls k t δ
+      ≤ ∑ _k : K, (1 / c₀) :=
+        Finset.sum_le_sum (fun k _ => hFk k)
+    _ = (Fintype.card K : ℝ) / c₀ := by
+        rw [Finset.sum_const, Finset.card_univ, nsmul_eq_mul]
+        ring
+
 end FilteredDescent
