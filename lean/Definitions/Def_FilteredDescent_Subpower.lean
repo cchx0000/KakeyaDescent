@@ -14,6 +14,22 @@ namespace FilteredDescent
 def SubpowerLE (x y : ℝ → ℝ) : Prop :=
   ∀ ε : ℝ, 0 < ε → ∃ C : ℝ, 0 ≤ C ∧ ∀ δ : ℝ, 0 < δ → δ < 1 → x δ ≤ C * δ ^ (-ε) * y δ
 
+/-- Uniform subpower domination (TODO_GUIDANCE P0-1).
+
+The constant `C` is quantified *before* the configuration `cfg : Config δ`,
+so `C` may depend on `ε` and on fixed paper parameters (e.g. the ambient
+dimension) but must NOT depend on the tube count, the concrete tube family,
+the history tree, the retained packet subset, or the carrier alphabet.
+
+This blocks the trivial `C = n` proof: when `n = n(δ)` grows with `δ`
+(e.g. `n(δ) ≍ δ^{-(d-1)}`), no fixed `C` works.
+
+The configuration type may depend on `δ` (scale-indexed families). -/
+def UniformSubpowerLE (Config : ℝ → Type)
+    (X Y : ∀ δ : ℝ, Config δ → ℝ) : Prop :=
+  ∀ ε : ℝ, 0 < ε → ∃ C : ℝ, 0 ≤ C ∧ ∀ δ : ℝ, 0 < δ → δ < 1 →
+    ∀ cfg : Config δ, X δ cfg ≤ C * δ ^ (-ε) * Y δ cfg
+
 /-- Subpower domination is reflexive on quantities nonnegative on `(0,1)`. -/
 theorem SubpowerLE.refl {x : ℝ → ℝ} (hx : ∀ δ : ℝ, 0 < δ → δ < 1 → 0 ≤ x δ) :
     SubpowerLE x x := by
@@ -104,5 +120,54 @@ theorem SubpowerLE.of_le_const {f g : ℝ → ℝ} {K : ℝ}
         calc g δ = 1 * g δ := (one_mul _).symm
           _ ≤ δ ^ (-ε) * g δ := mul_le_mul_of_nonneg_right hge hgδ
     _ = K * δ ^ (-ε) * g δ := by ring
+
+/-- Regression test (TODO_GUIDANCE P0-1 acceptance): the uniform API
+blocks the trivial `C = n` proof.
+
+`X δ = 1/δ^2` models a growing configuration; `Y δ = 1`. With `ε = 1`,
+uniformity would require `1/δ^2 ≤ C * δ^{-1}`, i.e. `1 ≤ C * δ` for all
+`δ ∈ (0,1)` — impossible. A non-uniform `C = 1/δ^2` would work, but `C`
+cannot depend on `δ`/the configuration. -/
+theorem uniform_not_trivial :
+    ¬ UniformSubpowerLE (fun _ : ℝ => Unit)
+      (fun δ _ => 1 / δ^2) (fun _ _ => (1 : ℝ)) := by
+  intro h
+  obtain ⟨C, hC, hbound⟩ := h 1 (by norm_num)
+  -- Key: 1/δ^2 ≤ C * δ^{-1} implies 1 ≤ C * δ.
+  have key : ∀ δ : ℝ, 0 < δ → δ < 1 → (1:ℝ) ≤ C * δ := by
+    intro δ hδ0 hδ1
+    have hb := hbound δ hδ0 hδ1 ()
+    simp only at hb
+    -- hb : 1/δ^2 ≤ C * δ^{-1} * 1
+    rw [mul_one] at hb
+    -- δ^{-(1:ℝ)} = 1/δ
+    have hrpow : δ ^ (-(1:ℝ)) = 1 / δ := by
+      rw [Real.rpow_neg (le_of_lt hδ0), Real.rpow_one, inv_eq_one_div]
+    rw [hrpow] at hb
+    -- Multiply by δ^2 > 0
+    have hδ2 : (0:ℝ) < δ^2 := by positivity
+    have h1 := mul_le_mul_of_nonneg_right hb (le_of_lt hδ2)
+    -- LHS: (1/δ^2) * δ^2 = 1
+    rw [div_mul_cancel₀ _ (ne_of_gt hδ2)] at h1
+    -- RHS: (C * (1/δ)) * δ^2 = C * δ
+    have hδne : δ ≠ 0 := ne_of_gt hδ0
+    have h2 : C * (1 / δ) * δ^2 = C * δ := by
+      field_simp
+    rw [h2] at h1
+    exact h1
+  -- Take δ = 1/(2*(C+1)): then C*δ = C/(2*(C+1)) < 1.
+  have hC1 : (0:ℝ) < C + 1 := by linarith [hC]
+  set δ₀ := 1 / (2 * (C+1)) with hδ₀
+  have hδ0 : (0:ℝ) < δ₀ := by positivity
+  have hδ1 : δ₀ < 1 := by
+    rw [hδ₀, div_lt_one (by positivity)]
+    linarith [hC]
+  have hcon := key δ₀ hδ0 hδ1
+  have hlt : C * δ₀ < 1 := by
+    rw [hδ₀]
+    have hpos : (0:ℝ) < 2 * (C+1) := by positivity
+    rw [mul_one_div, div_lt_one hpos]
+    linarith [hC]
+  linarith [hcon, hlt]
 
 end FilteredDescent
