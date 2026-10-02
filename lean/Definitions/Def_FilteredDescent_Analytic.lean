@@ -86,6 +86,35 @@ def Marked4DInput {n : ℕ} (shadeVol : Fin n → ℝ → ℝ) (unionVol : ℝ �
       if t ≠ t' then shadeVol t δ * shadeVol t' δ else 0)
     (fun δ => unionVol δ * ∑ t, shadeVol t δ)
 
+/-- Dimension-indexed geometric input (TODO_GUIDANCE item 6).
+
+Packages the paper's geometric pair-incidence estimate by ambient dimension:
+- `d = 2`: planar Córdoba estimate, paper (53), from [2];
+- `d = 3`: sticky Kakeya estimate, paper (177), from [7,10];
+- `d = 4`: marked 4D sticky estimate, paper (81), from [9].
+
+The three estimates share the abstract pair-incidence shape
+`∑_{t≠t'} |Y(t)|·|Y(t')| ≲ |⋃ Y| · ∑ |Y(t)|` because that is the interface
+the descent consumes. They are *distinct* constructors (not aliases):
+each is the named external theorem for its dimension.
+
+The old `PlanarInput`/`StickyInput`/`Marked4DInput` are kept for backward
+compatibility; new code should use `GeomInput`.
+
+The hereditary subtree conversion (from this input to `geom_pair` at each
+re-rooted subtree `x ∈ T`) is `geom_pair_of_geomInput` in
+`Thm_FilteredDescent_GeomConversion.lean`. -/
+inductive GeomInput : ℕ → {n : ℕ} → (Fin n → ℝ → ℝ) → (ℝ → ℝ) → Prop where
+  | planar {n : ℕ} {shadeVol : Fin n → ℝ → ℝ} {unionVol : ℝ → ℝ} :
+      PlanarInput shadeVol unionVol →
+      GeomInput 2 shadeVol unionVol
+  | sticky {n : ℕ} {shadeVol : Fin n → ℝ → ℝ} {unionVol : ℝ → ℝ} :
+      StickyInput shadeVol unionVol →
+      GeomInput 3 shadeVol unionVol
+  | marked4D {n : ℕ} {shadeVol : Fin n → ℝ → ℝ} {unionVol : ℝ → ℝ} :
+      Marked4DInput shadeVol unionVol →
+      GeomInput 4 shadeVol unionVol
+
 /-- Finite shaded tube family at scale `δ`: the analytic interface for
 the terminal incidence count (paper (214)).  `shadeVol t δ = |Y(t)|` is
 the shading volume, `unionVol δ = |⋃_t Y(t)|`, and `multiplicity δ` is the
