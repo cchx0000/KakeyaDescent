@@ -758,4 +758,26 @@ concrete deletion must satisfy. -/
 def SourceLedger.sourceSmall (L : SourceLedger) (ε : ℝ) : Prop :=
   L.deleted ≤ ε * L.total
 
+/-! ## F4c: (θ,j,c) model data threading (paper (150)–(153)) -/
+
+/-- Model data per descent node (paper (150)–(153)): the typed
+predecessor/slot/carrier triple for the common-source aggregation.
+
+- `theta`: typed predecessor mark `ϑ` (which type);
+- `slot`: scale/slot index `j`;
+- `carrier`: quantized affine carrier mark `c ∈ C_κ` (paper (152)).
+
+Paper: "Let `W^{θ,j} := Σ_c W^{θ,j,c}`. This is one disjoint aggregate
+of proper structural nodes" — nodes sharing `(θ,j)` are summed over `c`,
+with `|C_κ|` bounding the carrier count. -/
+structure ModelData where
+  theta : ℕ
+  slot : ℕ
+  carrier : ℕ
+deriving DecidableEq
+
+/-- The (θ,j) key: nodes are aggregated by typed predecessor and slot,
+summing over carriers. -/
+def ModelData.key (d : ModelData) : ℕ × ℕ := (d.theta, d.slot)
+
 end FilteredDescent
