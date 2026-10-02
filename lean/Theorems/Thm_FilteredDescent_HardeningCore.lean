@@ -652,4 +652,47 @@ theorem nodeHQuant_to_hquant {α : Type} [Fintype α] [DecidableEq α] {n : ℕ}
   rw [ec0]
   exact h2
 
+/-- Helper for P1-4 integration: if `x ∈ T` is not a leaf, then the root
+`[]` of the re-rooted tree is not a leaf either. -/
+theorem reroot_hnonroot_of_not_leaf {α : Type} [DecidableEq α]
+    (T : Finset (List α))
+    (hprefix : ∀ l ∈ T, ∀ p : List α, p <+: l → p ∈ T)
+    (x : List α) (hx : x ∈ T) (hnotleaf : x ∉ treeLeaves T) :
+    ∀ γ ∈ treeLeaves (reroot T x), γ ≠ [] := by
+  intro γ hγ hcon
+  -- γ = []; derive that [] is maximal in reroot T x
+  rw [hcon] at hγ
+  have hmax : ∀ l' ∈ reroot T x, [] <+: l' → l' = [] := by
+    have := (Finset.mem_filter.mp hγ).2
+    exact this
+  -- From ¬(x ∈ treeLeaves T) and x ∈ T, get a proper extension
+  have hxT : x ∈ T := hx
+  have hnotmax : ¬(∀ l' ∈ T, x <+: l' → l' = x) := by
+    intro hall
+    apply hnotleaf
+    exact Finset.mem_filter.mpr ⟨hx, hall⟩
+  push Not at hnotmax
+  obtain ⟨l', hl'T, hxpl', hne⟩ := hnotmax
+  -- l' = x ++ a for some a ≠ []; keep hxpl' for later
+  have hxpl'_copy := hxpl'
+  obtain ⟨a, ha⟩ := hxpl'
+  -- ha : x ++ a = l'
+  have hane : a ≠ [] := by
+    intro h0
+    rw [h0, List.append_nil] at ha
+    -- ha : x = l', so ha.symm : l' = x contradicts hne
+    exact hne ha.symm
+  -- a ∈ reroot T x via l'
+  have hamem : a ∈ reroot T x := by
+    rw [reroot_mem]
+    refine ⟨l', hl'T, hxpl'_copy, ?_⟩
+    rw [← ha]
+    simp
+  -- [] <+: a since a ≠ []
+  have hprefix_nil : [] <+: a := by
+    exact ⟨a, by simp⟩
+  -- By maximality, a = []
+  have heq := hmax a hamem hprefix_nil
+  exact hane heq
+
 end FilteredDescent
