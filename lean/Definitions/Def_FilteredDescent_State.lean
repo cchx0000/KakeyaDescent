@@ -964,4 +964,103 @@ theorem selectedTree_prefix {α : Type} [Fintype α] [DecidableEq α]
           rw [Finset.mem_image]
           exact ⟨q', hq'mem, rfl⟩
 
+/-- The `[]`-rooted faithful tree: drop the initial state `s` from each
+path.  This matches the gate interface (`T : Finset (List α)` with
+`[] ∈ T`). -/
+noncomputable def faithfulTree0 {α : Type} [Fintype α] [DecidableEq α] {n r : ℕ}
+    (s : DescentState α n) (selOf : DescentState α n → PacketSelect α n r) :
+    Finset (List (DescentState α n)) :=
+  (selectedTree s selOf).image List.tail
+
+/-- Root membership: `[]` is in the `[]`-rooted tree. -/
+theorem faithfulTree0_root {α : Type} [Fintype α] [DecidableEq α] {n r : ℕ}
+    (s : DescentState α n) (selOf : DescentState α n → PacketSelect α n r) :
+    [] ∈ faithfulTree0 s selOf := by
+  unfold faithfulTree0
+  rw [Finset.mem_image]
+  refine ⟨[s], ?_, ?_⟩
+  · -- [s] ∈ selectedTree s selOf: by unfold, left part
+    rw [selectedTree_unfold]
+    exact Finset.mem_union_left _ (Finset.mem_singleton_self [s])
+  · rfl
+
+/-- Every node `q` in the `[]`-rooted tree lifts to `s :: q` in the
+`[s]`-rooted tree. -/
+theorem faithfulTree0_lift {α : Type} [Fintype α] [DecidableEq α] {n r : ℕ}
+    (s : DescentState α n) (selOf : DescentState α n → PacketSelect α n r)
+    (q : List (DescentState α n)) (hq : q ∈ faithfulTree0 s selOf) :
+    (s :: q) ∈ selectedTree s selOf := by
+  unfold faithfulTree0 at hq
+  rw [Finset.mem_image] at hq
+  obtain ⟨p, hp, hqeq⟩ := hq
+  -- p ∈ selectedTree s, so p.head? = some s
+  have hhead : p.head? = some s := by
+    have hsub : p ∈ descentTree s := selectedTree_subset s selOf hp
+    exact descentTree_head s p hsub
+  -- Thus p = s :: q (since p.tail = q and head is s)
+  have hp_eq : p = s :: q := by
+    cases p with
+    | nil => simp at hhead
+    | cons a rest =>
+      simp only [List.tail_cons] at hqeq
+      simp at hhead
+      rw [hhead, hqeq]
+  rw [hp_eq] at hp
+  exact hp
+
+/-- Prefix-closure for the `[]`-rooted tree. -/
+theorem faithfulTree0_prefix {α : Type} [Fintype α] [DecidableEq α] {n r : ℕ}
+    (s : DescentState α n) (selOf : DescentState α n → PacketSelect α n r)
+    (q : List (DescentState α n)) (hq : q ∈ faithfulTree0 s selOf)
+    (r : List (DescentState α n)) (hrq : r <+: q) :
+    r ∈ faithfulTree0 s selOf := by
+  -- Lift to s :: q, use selectedTree_prefix on s :: r <+: s :: q
+  have hsq : (s :: q) ∈ selectedTree s selOf := faithfulTree0_lift s selOf q hq
+  have hsr : (s :: r) <+: (s :: q) := by
+    obtain ⟨t, ht⟩ := hrq
+    refine ⟨t, ?_⟩
+    rw [List.cons_append, ht]
+  by_cases hr : r = []
+  · rw [hr]
+    exact faithfulTree0_root s selOf
+  · have hmem : (s :: r) ∈ selectedTree s selOf :=
+      selectedTree_prefix s selOf (s :: q) hsq (s :: r) hsr (by simp)
+    unfold faithfulTree0
+    rw [Finset.mem_image]
+    exact ⟨s :: r, hmem, rfl⟩
+
+/-- Label for the `[]`-rooted tree: the (135) label of the node state.
+For `q`, the state is the last of `s :: q` (which is `s` if `q = []`). -/
+def faithfulLab0 {α : Type} {n : ℕ} (s : DescentState α n)
+    (q : List (DescentState α n)) : ℕ × ℕ × ℕ :=
+  pathLabel (s :: q)
+
+/-- The `[]`-rooted faithful tree satisfies `DescentLabels`. -/
+theorem faithfulTree0_labels {α : Type} [Fintype α] [DecidableEq α] {n r : ℕ}
+    (s : DescentState α n) (selOf : DescentState α n → PacketSelect α n r) :
+    DescentLabels (faithfulTree0 s selOf) (faithfulLab0 s) := by
+  intro a ha b hb
+  rw [treeChildren, Finset.mem_filter] at hb
+  obtain ⟨hb_mem, hab_pref, hab_len⟩ := hb
+  -- Lift to selectedTree
+  have ha_lift : (s :: a) ∈ selectedTree s selOf := faithfulTree0_lift s selOf a ha
+  have hb_lift : (s :: b) ∈ selectedTree s selOf := faithfulTree0_lift s selOf b hb_mem
+  -- s :: b ∈ treeChildren (selectedTree s) (s :: a)
+  have hb_child : (s :: b) ∈ treeChildren (selectedTree s selOf) (s :: a) := by
+    rw [treeChildren, Finset.mem_filter]
+    refine ⟨hb_lift, ?_, ?_⟩
+    · -- (s :: a) <+: (s :: b)
+      obtain ⟨t, ht⟩ := hab_pref
+      refine ⟨t, ?_⟩
+      rw [List.cons_append, ht]
+    · -- length
+      simp at hab_len ⊢
+      omega
+  -- Apply selectedTree_labels
+  have h := selectedTree_labels (α := α) (n := n) (r := r) s selOf (s :: a) ha_lift (s :: b) hb_child
+  -- h : DescentLt (pathLabel (s :: b)) (pathLabel (s :: a))
+  -- faithfulLab0 s b = pathLabel (s :: b), similarly for a
+  unfold faithfulLab0
+  exact h
+
 end FilteredDescent
