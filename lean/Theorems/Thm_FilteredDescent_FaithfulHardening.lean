@@ -492,4 +492,59 @@ theorem node_hardening_subpower {α : Type} [Fintype α] [DecidableEq α]
   rw [hfinal] at hsum
   exact hsum
 
+/-! ## P1-5: Per-subtree HardeningInputs from a single ledger -/
+
+/-- Global hardening ledger (TODO_GUIDANCE P1-5).
+
+Bundles the (θ,j,c) model data that is SHARED across all subtrees:
+the class type `K`, packet weights `w`, packet sets `A`, quantum `c₀`,
+etc.  Per-node variation is ONLY in the class assignment `clsAt`
+for that node's children.  This ensures per-subtree `HardeningInputs`
+are derived from the SAME ledger, not unrelated arbitrary models. -/
+structure HardeningLedger (α : Type) [Fintype α] [DecidableEq α]
+    {n : ℕ} (T : Finset (List α)) where
+  K : Type
+  [finK : Fintype K]
+  [decK : DecidableEq K]
+  r : ℕ
+  hr : 0 < r
+  w : K → Fin n → ℝ
+  hw : ∀ k i, 0 ≤ w k i
+  hW : ∀ k, 0 < ∑ i, w k i
+  A : K → Finset (Fin r → Fin n)
+  hAne : ∀ k, (A k).Nonempty
+  αm : K → ℝ
+  hα : ∀ k, αm k = retainedMass (w k) (A k)
+  hαpos : ∀ k, 0 < αm k
+  c₀ : ℝ
+  hc₀ : 0 < c₀
+  hcard : SubpowerLE (fun _ : ℝ => (Fintype.card K : ℝ)) (fun _ => 1)
+  -- Per-node class assignment for the children of each node.
+  clsAt : ∀ x ∈ T, Fin (treeChildren (reroot T x) []).card → K
+  slotOf : K → Fin r
+
+attribute [instance] HardeningLedger.finK HardeningLedger.decK
+
+/-- Per-subtree `HardeningInputs` derived from the single global ledger. -/
+noncomputable def hardeningInputsAt {α : Type} [Fintype α] [DecidableEq α]
+    {n : ℕ} {T : Finset (List α)} (L : HardeningLedger α (n := n) T)
+    (x : List α) (hx : x ∈ T) :
+    HardeningInputs ((treeChildren (reroot T x) []).card) n where
+  K := L.K
+  r := L.r
+  cls := L.clsAt x hx
+  slotOf := L.slotOf
+  hr := L.hr
+  w := L.w
+  hw := L.hw
+  hW := L.hW
+  A := L.A
+  hAne := L.hAne
+  α := L.αm
+  hα := L.hα
+  hαpos := L.hαpos
+  c₀ := L.c₀
+  hc₀ := L.hc₀
+  hcard := L.hcard
+
 end FilteredDescent
