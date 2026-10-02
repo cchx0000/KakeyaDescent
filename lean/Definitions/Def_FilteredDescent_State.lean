@@ -525,4 +525,52 @@ theorem descentTree_labels {α : Type} [Fintype α] [DecidableEq α] {n : ℕ}
   -- DescentStep → DescentLt on labels
   exact DescentStateLt.of_step hstep
 
+/-! ## F4a: Packet-law child selection -/
+
+/-- Packet selection data at a descent state (paper §§6–9): the packet
+law induces a mass distribution on the successor states; the realized
+children are those with positive mass.
+
+- `faceOf`: assigns each packet (tube tuple) to its first-failed face
+  `J ⊆ I` (paper §9.1);
+- `childMass`: the induced mass on successor states (from `packetLaw`
+  via `retainedMass`; confluence/Cartan masses from the insertion
+  kernels).
+
+Only the interface matters here: selected children are a subset of
+`successors`, hence valid `DescentStep`s. -/
+structure PacketSelect (α : Type) (n r : ℕ) where
+  /-- First-failed face of a packet (always a face of the support). -/
+  faceOf : (Fin r → Fin n) → Finset (Fin n)
+  /-- Mass of each successor state under the packet law. -/
+  childMass : DescentState α n → ℝ
+
+/-- Packet-selected children: successors with positive mass.
+These are the geometrically realized children (paper: the tree
+`T_{I,k}` contains only the retained structural labels). -/
+noncomputable def packetChildren {α : Type} [Fintype α] [DecidableEq α] {n r : ℕ}
+    (s : DescentState α n) (sel : PacketSelect α n r) :
+    Finset (DescentState α n) :=
+  (successors s).filter (fun t => 0 < sel.childMass t)
+
+/-- Selected children are among the successors. -/
+theorem packetChildren_subset {α : Type} [Fintype α] [DecidableEq α]
+    {n r : ℕ} (s : DescentState α n) (sel : PacketSelect α n r) :
+    packetChildren s sel ⊆ successors s :=
+  Finset.filter_subset _ _
+
+/-- Every packet-selected child is a (135)-descent step. -/
+theorem packetChildren_are_steps {α : Type} [Fintype α] [DecidableEq α]
+    {n r : ℕ} (s : DescentState α n) (sel : PacketSelect α n r)
+    (t : DescentState α n) (ht : t ∈ packetChildren s sel) :
+    DescentStep t s :=
+  successors_are_steps s t (packetChildren_subset s sel ht)
+
+/-- Selected children satisfy the branching bound a fortiori. -/
+theorem packetChildren_card_le {α : Type} [Fintype α] [DecidableEq α]
+    {n r : ℕ} (s : DescentState α n) (sel : PacketSelect α n r) :
+    (packetChildren s sel).card ≤ 2 ^ s.support.card + s.confl.length + s.cartan :=
+  le_trans (Finset.card_le_card (packetChildren_subset s sel))
+    (successors_card_le s)
+
 end FilteredDescent
