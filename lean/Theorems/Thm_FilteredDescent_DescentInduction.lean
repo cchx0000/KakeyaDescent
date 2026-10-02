@@ -161,7 +161,7 @@ comes from the IH at strictly smaller labels
 (`DescentLt.of_strict_prefix` + `reroot_nodeAgg`), and
 `SubpowerLE.div_of_sq` + `reroot_totalLoad` turn the gate output into
 the invariant at the current vertex. -/
-theorem descent_bound {α : Type} [DecidableEq α] [Fintype α] {n : ℕ}
+theorem descent_bound {α : Type} [DecidableEq α] {n : ℕ}
     (T : Finset (List α))
     (hprefix : ∀ l ∈ T, ∀ p : List α, p <+: l → p ∈ T)
     (lab : List α → ℕ × ℕ × ℕ) (hlab : DescentLabels T lab)
@@ -290,7 +290,7 @@ theorem descent_bound {α : Type} [DecidableEq α] [Fintype α] {n : ℕ}
 gate's predecessor hypothesis is exactly what `descent_bound` proves.
 Paper (142): `N(δ)² ≲ B^pred(δ) · N(δ)`, now a theorem rather than a
 conditional claim. -/
-theorem faithful_gate_discharged {α : Type} [DecidableEq α] [Fintype α] {n : ℕ}
+theorem faithful_gate_discharged {α : Type} [DecidableEq α] {n : ℕ}
     (T : Finset (List α)) (hroot : [] ∈ T)
     (hprefix : ∀ l ∈ T, ∀ p : List α, p <+: l → p ∈ T)
     (lab : List α → ℕ × ℕ × ℕ) (hlab : DescentLabels T lab)

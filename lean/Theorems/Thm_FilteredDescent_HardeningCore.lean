@@ -147,7 +147,7 @@ theorem rootChildDb_le_Bpred {α : Type} [DecidableEq α] {n : ℕ}
     _ ≤ Bpred δ := Hpred δ hδ0 hδ1 cb hcb_mem.1 hcb_ne
 
 /-- `∑ t, termLoad t = totalLoad`: partition leaves by `termTube`. -/
-theorem sum_termLoad_eq_totalLoad {α : Type} [DecidableEq α] [Fintype α]
+theorem sum_termLoad_eq_totalLoad {α : Type} [DecidableEq α]
     {n : ℕ} (T : Finset (List α))
     (termTube : List α → Fin n) (load : List α → ℝ → ℝ) (δ : ℝ) :
     (∑ t : Fin n, termLoad T termTube load t δ) = totalLoad T load δ := by
@@ -350,7 +350,7 @@ theorem histCount_le_card_div {n : ℕ} {K : Type*} [Fintype K] [DecidableEq K]
 Re-runs (149)-(153) with uniform subpower predecessor constant.
 `hlink`/`hquant` keep original `Bpred`; (149) uses the inflated bound
 from `uniform_proper_const`; extra factor absorbed into subpower ledger. -/
-theorem node_hardening_subpower {α : Type} [Fintype α] [DecidableEq α]
+theorem node_hardening_subpower {α : Type} [DecidableEq α]
     {n : ℕ} (T : Finset (List α))
     (hprefix : ∀ l ∈ T, ∀ p : List α, p <+: l → p ∈ T)
     (hnonroot : ∀ γ ∈ treeLeaves T, γ ≠ [])
@@ -520,7 +520,7 @@ the class type `K`, packet weights `w`, packet sets `A`, quantum `c₀`,
 etc.  Per-node variation is ONLY in the class assignment `clsAt`
 for that node's children.  This ensures per-subtree `HardeningInputs`
 are derived from the SAME ledger, not unrelated arbitrary models. -/
-structure HardeningLedger (α : Type) [Fintype α] [DecidableEq α]
+structure HardeningLedger (α : Type) [DecidableEq α]
     {n : ℕ} (T : Finset (List α)) where
   K : Type
   [finK : Fintype K]
@@ -545,7 +545,7 @@ structure HardeningLedger (α : Type) [Fintype α] [DecidableEq α]
 attribute [instance] HardeningLedger.finK HardeningLedger.decK
 
 /-- Per-subtree `HardeningInputs` derived from the single global ledger. -/
-noncomputable def hardeningInputsAt {α : Type} [Fintype α] [DecidableEq α]
+noncomputable def hardeningInputsAt {α : Type} [DecidableEq α]
     {n : ℕ} {T : Finset (List α)} (L : HardeningLedger α (n := n) T)
     (x : List α) (hx : x ∈ T) :
     HardeningInputs ((treeChildren (reroot T x) []).card) n where
@@ -570,7 +570,7 @@ noncomputable def hardeningInputsAt {α : Type} [Fintype α] [DecidableEq α]
 
 /-- Per-node link hypothesis type (paper (150)-(151)), for the re-rooted
 subtree at `x`, with `HardeningInputs` derived from the single ledger `L`. -/
-def NodeHLink {α : Type} [Fintype α] [DecidableEq α] {n : ℕ}
+def NodeHLink {α : Type} [DecidableEq α] {n : ℕ}
     {T : Finset (List α)} (L : HardeningLedger α (n := n) T)
     (x : List α) (hx : x ∈ T)
     (termTube : List α → Fin n) (load : List α → ℝ → ℝ)
@@ -587,7 +587,7 @@ def NodeHLink {α : Type} [Fintype α] [DecidableEq α] {n : ℕ}
         (if U (L.slotOf k) = t then packetLaw (L.w k) U else 0)
 
 /-- Per-node quantum hypothesis type (paper (152)-(153)). -/
-def NodeHQuant {α : Type} [Fintype α] [DecidableEq α] {n : ℕ}
+def NodeHQuant {α : Type} [DecidableEq α] {n : ℕ}
     {T : Finset (List α)} (L : HardeningLedger α (n := n) T)
     (x : List α) (hx : x ∈ T)
     (termTube : List α → Fin n) (load : List α → ℝ → ℝ)
@@ -603,7 +603,7 @@ def NodeHQuant {α : Type} [Fintype α] [DecidableEq α] {n : ℕ}
 
 /-- Bridge: `NodeHLink` from the ledger provides the `hlink` hypothesis
 needed by `node_hardening_subpower` for the derived `HardeningInputs`. -/
-theorem nodeHLink_to_hlink {α : Type} [Fintype α] [DecidableEq α] {n : ℕ}
+theorem nodeHLink_to_hlink {α : Type} [DecidableEq α] {n : ℕ}
     {T : Finset (List α)} (L : HardeningLedger α (n := n) T)
     (x : List α) (hx : x ∈ T)
     (termTube : List α → Fin n) (load : List α → ℝ → ℝ)
@@ -631,7 +631,7 @@ theorem nodeHLink_to_hlink {α : Type} [Fintype α] [DecidableEq α] {n : ℕ}
   exact h2
 
 /-- Bridge: `NodeHQuant` provides the `hquant` hypothesis. -/
-theorem nodeHQuant_to_hquant {α : Type} [Fintype α] [DecidableEq α] {n : ℕ}
+theorem nodeHQuant_to_hquant {α : Type} [DecidableEq α] {n : ℕ}
     {T : Finset (List α)} (L : HardeningLedger α (n := n) T)
     (x : List α) (hx : x ∈ T)
     (termTube : List α → Fin n) (load : List α → ℝ → ℝ)
