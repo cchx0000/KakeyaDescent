@@ -152,4 +152,191 @@ theorem StateLabelled.to_DescentLabels {α : Type} [DecidableEq α] {n : ℕ}
   intro a ha b hb
   exact DescentStateLt.of_step (h a ha b hb)
 
+/-! ## F3: Successor branching (finite, packet-driven skeleton) -/
+
+/-- `DescentState` has decidable equality when the mark type does. -/
+instance DescentState.decidableEq {α : Type} [DecidableEq α] {n : ℕ} :
+    DecidableEq (DescentState α n) := by
+  intro s t
+  cases s with | mk ss sc sk =>
+  cases t with | mk ts tc tk =>
+  simp only [DescentState.mk.injEq]
+  infer_instance
+
+/-- Successor states of `s`: all one-step (135)-descents, i.e. all `t`
+with `DescentStep t s`.
+- Face: any proper subset of the support (confl/cartan unchanged);
+- Confluence: any proper prefix of the word — the descent *resolves*
+  confluence by shortening the remaining word (paper: "a strict
+  confluence predecessor lowers ℓ(χ)");
+- Cartan: any strictly smaller height.
+
+Finiteness: support has finitely many subsets; the word has finitely
+many prefixes; the smaller heights are finite.  The *packet law* (F4)
+will *select* the geometrically realized children from these
+candidates; this is the full branching skeleton. -/
+def successors {α : Type} [Fintype α] [DecidableEq α] {n : ℕ}
+    (s : DescentState α n) : Finset (DescentState α n) :=
+  ((s.support.powerset.filter (fun J => J ⊂ s.support)).image
+      (fun J => ({ s with support := J } : DescentState α n)))
+    ∪ ((Finset.range s.confl.length).image
+        (fun k => ({ s with confl := s.confl.take k } : DescentState α n)))
+    ∪ ((Finset.range s.cartan).image
+        (fun m => ({ s with cartan := m } : DescentState α n)))
+
+/-- Every successor is a (135)-descent step. -/
+theorem successors_are_steps {α : Type} [Fintype α] [DecidableEq α] {n : ℕ}
+    (s : DescentState α n) (t : DescentState α n) (ht : t ∈ successors s) :
+    DescentStep t s := by
+  have face_case : ∀ u : DescentState α n,
+      u ∈ (s.support.powerset.filter (fun J => J ⊂ s.support)).image
+        (fun J => ({ s with support := J } : DescentState α n)) →
+      DescentStep u s := by
+    intro u hu
+    left
+    rw [Finset.mem_image] at hu
+    obtain ⟨J, hJ, rfl⟩ := hu
+    rw [Finset.mem_filter] at hJ
+    obtain ⟨_, hsub⟩ := hJ
+    exact ⟨hsub, rfl, rfl⟩
+  have confl_case : ∀ u : DescentState α n,
+      u ∈ (Finset.range s.confl.length).image
+        (fun k => ({ s with confl := s.confl.take k } : DescentState α n)) →
+      DescentStep u s := by
+    intro u hu
+    right
+    left
+    rw [Finset.mem_image] at hu
+    obtain ⟨k, hk, rfl⟩ := hu
+    rw [Finset.mem_range] at hk
+    refine ⟨rfl, ?_, ?_, rfl⟩
+    · -- take k is a prefix
+      exact List.take_prefix _ _
+    · -- take k ≠ full word since k < length
+      intro heq
+      have hlen : (s.confl.take k).length = s.confl.length :=
+        congrArg List.length heq
+      rw [List.length_take] at hlen
+      omega
+  have cartan_case : ∀ u : DescentState α n,
+      u ∈ (Finset.range s.cartan).image
+        (fun m => ({ s with cartan := m } : DescentState α n)) →
+      DescentStep u s := by
+    intro u hu
+    right
+    right
+    rw [Finset.mem_image] at hu
+    obtain ⟨m, hm, rfl⟩ := hu
+    rw [Finset.mem_range] at hm
+    exact ⟨rfl, rfl, hm⟩
+  unfold successors at ht
+  simp only [Finset.mem_union] at ht
+  rcases ht with (h | h) | h
+  · exact face_case t h
+  · exact confl_case t h
+  · exact cartan_case t h
+
+/-- Branching bound: number of successors is controlled by the support
+size, word length, and Cartan height. -/
+theorem successors_card_le {α : Type} [Fintype α] [DecidableEq α] {n : ℕ}
+    (s : DescentState α n) :
+    (successors s).card ≤ 2 ^ s.support.card + s.confl.length + s.cartan := by
+  -- Name the three parts
+  set F : Finset (DescentState α n) :=
+    (s.support.powerset.filter (fun J => J ⊂ s.support)).image
+      (fun J => ({ s with support := J } : DescentState α n)) with hF
+  set C : Finset (DescentState α n) :=
+    (Finset.range s.confl.length).image
+      (fun k => ({ s with confl := s.confl.take k } : DescentState α n)) with hC
+  set K : Finset (DescentState α n) :=
+    (Finset.range s.cartan).image
+      (fun m => ({ s with cartan := m } : DescentState α n)) with hK
+  have h1 : F.card ≤ 2 ^ s.support.card := by
+    rw [hF]
+    calc _ ≤ (s.support.powerset.filter (fun J => J ⊂ s.support)).card :=
+          Finset.card_image_le
+      _ ≤ s.support.powerset.card := Finset.card_filter_le _ _
+      _ = 2 ^ s.support.card := Finset.card_powerset _
+  have h2 : C.card ≤ s.confl.length := by
+    rw [hC]
+    calc _ ≤ (Finset.range s.confl.length).card := Finset.card_image_le
+      _ = s.confl.length := Finset.card_range _
+  have h3 : K.card ≤ s.cartan := by
+    rw [hK]
+    calc _ ≤ (Finset.range s.cartan).card := Finset.card_image_le
+      _ = s.cartan := Finset.card_range _
+  have hFC : (F ∪ C).card ≤ 2 ^ s.support.card + s.confl.length :=
+    le_trans (Finset.card_union_le F C) (Nat.add_le_add h1 h2)
+  have hFCK : (F ∪ C ∪ K).card ≤ 2 ^ s.support.card + s.confl.length + s.cartan :=
+    le_trans (Finset.card_union_le (F ∪ C) K) (Nat.add_le_add hFC h3)
+  have hsucc : successors s = F ∪ C ∪ K := by
+    simp only [successors, hF, hC, hK]
+  rw [hsucc]
+  -- reassociate: (a + b) + c = a + b + c is rfl by Nat.add_assoc
+  simpa [Nat.add_assoc] using hFCK
+
+/-! ## F3b: First-failure face selection (paper §9.1, (42)) -/
+
+/-- First-failed-pivot face selection (paper §9.1): given a support `I`
+and a per-element pivot-survival predicate, assign the packet to the
+maximal subset of `I` whose pivots survive.
+
+Paper: "assign the packet to the first maximal subset J ⊆ I whose
+declared pivots survive, using lexicographic tie breaking, and assign
+it to J = I exactly when every pivot survives."
+
+In the per-element survival model, the maximal surviving subset is
+unique (the set of all surviving elements), so no tie-breaking is
+needed; the lexicographic rule of the paper selects this same unique
+maximal set. -/
+def firstFailedFace {n : ℕ} (I : Finset (Fin n)) (survives : Fin n → Prop)
+    [DecidablePred survives] : Finset (Fin n) :=
+  I.filter survives
+
+/-- The selected face is a subset of the support. -/
+theorem firstFailedFace_subset {n : ℕ} (I : Finset (Fin n))
+    (survives : Fin n → Prop) [DecidablePred survives] :
+    firstFailedFace I survives ⊆ I :=
+  Finset.filter_subset _ _
+
+/-- If every pivot survives, the packet stays at full support
+(paper: "assign it to J = I exactly when every pivot survives"). -/
+theorem firstFailedFace_full {n : ℕ} (I : Finset (Fin n))
+    (survives : Fin n → Prop) [DecidablePred survives]
+    (h : ∀ j ∈ I, survives j) :
+    firstFailedFace I survives = I :=
+  Finset.filter_true_of_mem h
+
+/-- The selected face has the universal property: it contains every
+surviving element of `I`, hence is the unique maximal surviving
+subset. -/
+theorem firstFailedFace_maximal {n : ℕ} (I : Finset (Fin n))
+    (survives : Fin n → Prop) [DecidablePred survives]
+    (J : Finset (Fin n)) (hJ : J ⊆ I) (hsurv : ∀ j ∈ J, survives j) :
+    J ⊆ firstFailedFace I survives := by
+  intro j hj
+  rw [firstFailedFace, Finset.mem_filter]
+  exact ⟨hJ hj, hsurv j hj⟩
+
+/-- A first-failure face step: moving from support `I` to the selected
+face `J` is either trivial (no pivot failed) or a proper face descent
+(paper (135): "a proper face lowers support"). -/
+theorem firstFailedFace_step {α : Type} [DecidableEq α] {n : ℕ}
+    (s : DescentState α n) (survives : Fin n → Prop) [DecidablePred survives]
+    (t : DescentState α n)
+    (ht_supp : t.support = firstFailedFace s.support survives)
+    (ht_confl : t.confl = s.confl) (ht_cartan : t.cartan = s.cartan) :
+    t.support ⊆ s.support ∧
+      (t.support = s.support ∨ DescentStep t s) := by
+  refine ⟨?_, ?_⟩
+  · rw [ht_supp]
+    exact firstFailedFace_subset _ _
+  · by_cases heq : t.support = s.support
+    · exact Or.inl heq
+    · right
+      left
+      refine ⟨?_, ht_confl, ht_cartan⟩
+      rw [ht_supp]
+      exact lt_of_le_of_ne (firstFailedFace_subset _ _) (fun h => heq (ht_supp.trans h))
+
 end FilteredDescent
