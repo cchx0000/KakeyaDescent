@@ -124,4 +124,32 @@ theorem DescentStateLt.of_step {α : Type} {n : ℕ} {s t : DescentState α n}
   · exact DescentStateLt.of_conflStep h
   · exact DescentStateLt.of_cartanStep h
 
+/-- The combined step relation: any of the three (135)-decreasing steps. -/
+def DescentStep {α : Type} {n : ℕ} (s t : DescentState α n) : Prop :=
+  IsFaceStep s t ∨ IsConflStep s t ∨ IsCartanStep s t
+
+/-- The step relation is well-founded (via the (135) label). -/
+theorem DescentStep.wellFounded {α : Type} {n : ℕ} :
+    WellFounded (@DescentStep α n) := by
+  apply Subrelation.wf (r := @DescentStateLt α n)
+  · intro s t h
+    exact DescentStateLt.of_step h
+  · exact DescentStateLt.wellFounded
+
+/-- A history tree is *state-labelled* if every node carries a
+`DescentState` and every tree edge (parent → child) is a `DescentStep`
+on the states.  This is the faithful §§6–9 tree structure. -/
+def StateLabelled {α : Type} [DecidableEq α] {n : ℕ} (T : Finset (List α))
+    (st : List α → DescentState α n) : Prop :=
+  ∀ a ∈ T, ∀ b ∈ treeChildren T a, DescentStep (st b) (st a)
+
+/-- A state-labelled tree satisfies `DescentLabels` (paper (135)): the
+(135) label strictly decreases along tree edges. -/
+theorem StateLabelled.to_DescentLabels {α : Type} [DecidableEq α] {n : ℕ}
+    (T : Finset (List α)) (st : List α → DescentState α n)
+    (h : StateLabelled T st) :
+    DescentLabels T (fun w => descentLabel (st w)) := by
+  intro a ha b hb
+  exact DescentStateLt.of_step (h a ha b hb)
+
 end FilteredDescent
