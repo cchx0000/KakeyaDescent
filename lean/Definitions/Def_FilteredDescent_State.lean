@@ -444,4 +444,34 @@ def pathLabel {α : Type} {n : ℕ} (p : List (DescentState α n)) : ℕ × ℕ 
   | some t => descentLabel t
   | none => (0, 0, 0)
 
+/-- From a descent chain `p ++ [t]` with `p` nonempty, extract the last
+step: `t` is a `DescentStep` from the last element of `p`. -/
+theorem IsDescentChain_last_step {α : Type} {n : ℕ}
+    (p : List (DescentState α n)) (t : DescentState α n) (hp : p ≠ [])
+    (hchain : IsDescentChain (p ++ [t])) :
+    DescentStep t (p.getLast hp) := by
+  induction p with
+  | nil => exact absurd rfl hp
+  | cons a rest ih =>
+    cases rest with
+    | nil =>
+      -- p = [a]: p ++ [t] = [a, t]; unfold chain to get DescentStep t a
+      have h1 : DescentStep t a ∧ IsDescentChain [t] := by
+        have h2 : IsDescentChain ([a] ++ [t]) := by simpa using hchain
+        simpa [IsDescentChain] using h2
+      have hlast : ([a] : List (DescentState α n)).getLast hp = a := by simp
+      rw [hlast]
+      exact h1.1
+    | cons b rest' =>
+      -- p = a :: b :: rest': unfold first step, apply IH to b :: rest'
+      have h1 : DescentStep b a ∧ IsDescentChain (((b :: rest') : List (DescentState α n)) ++ [t]) := by
+        have h2 : IsDescentChain ((a :: b :: rest') ++ [t]) := by simpa using hchain
+        simpa [IsDescentChain] using h2
+      have hne : ((b :: rest') : List (DescentState α n)) ≠ [] := by simp
+      have hstep := ih hne h1.2
+      have heq : ((b :: rest') : List (DescentState α n)).getLast hne
+          = (a :: b :: rest').getLast hp := by simp [List.getLast]
+      rw [heq] at hstep
+      exact hstep
+
 end FilteredDescent
