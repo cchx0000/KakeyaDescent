@@ -1,4 +1,5 @@
 import Theorems.Thm_FilteredDescent_DescentInduction
+import Theorems.Thm_FilteredDescent_HardeningCore
 import Theorems.Thm_FilteredDescent_DescentBounds
 import Definitions.Def_FilteredDescent_PhysicalTubes
 import Mathlib.Data.Real.Basic
