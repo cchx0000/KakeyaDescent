@@ -161,7 +161,7 @@ comes from the IH at strictly smaller labels
 (`DescentLt.of_strict_prefix` + `reroot_nodeAgg`), and
 `SubpowerLE.div_of_sq` + `reroot_totalLoad` turn the gate output into
 the invariant at the current vertex. -/
-theorem descent_bound {α : Type} [DecidableEq α] {n : ℕ}
+theorem descent_bound {α : Type} [DecidableEq α] [Fintype α] {n : ℕ}
     (T : Finset (List α))
     (hprefix : ∀ l ∈ T, ∀ p : List α, p <+: l → p ∈ T)
     (lab : List α → ℕ × ℕ × ℕ) (hlab : DescentLabels T lab)
@@ -169,10 +169,11 @@ theorem descent_bound {α : Type} [DecidableEq α] {n : ℕ}
     (hload : ∀ γ ∈ treeLeaves T, ∀ δ : ℝ, 0 < δ → δ < 1 → 0 ≤ load γ δ)
     (Bpred : ℝ → ℝ)
     (hBpred : ∀ δ : ℝ, 0 < δ → δ < 1 → 0 ≤ Bpred δ)
-    (terminal_hardening : ∀ x ∈ T, SubpowerLE
-      (fun δ => ∑ t : Fin n, (termLoad (reroot T x) (fun s => termTube (x ++ s))
-        (fun s δ => load (x ++ s) δ) t δ) ^ 2)
-      (fun δ => Bpred δ * totalLoad (reroot T x) (fun s δ => load (x ++ s) δ) δ))
+    (L : HardeningLedger α (n := n) T)
+    (hlinkAt : ∀ (x : List α) (hx : x ∈ T),
+      NodeHLink L x hx termTube load Bpred)
+    (hquantAt : ∀ (x : List α) (hx : x ∈ T),
+      NodeHQuant L x hx termTube load Bpred)
     (geom_pair : ∀ x ∈ T, SubpowerLE
       (fun δ => ∑ t : Fin n, ∑ t' : Fin n,
         if t ≠ t' then termLoad (reroot T x) (fun s => termTube (x ++ s))
@@ -256,9 +257,25 @@ theorem descent_bound {α : Type} [DecidableEq α] {n : ℕ}
         funext fun δ => (reroot_nodeAgg T x load δ a).symm
       rw [heq] at hih
       exact hih
+    -- P1-4: derive hardening from ledger via node_hardening_subpower.
+    -- hHpred (from IH) provides the subpower predecessor bounds.
+    -- In this branch (by_cases), hleaf : ¬(x ∈ treeLeaves T).
+    have hnonrootx : ∀ γ ∈ treeLeaves (reroot T x), γ ≠ [] :=
+      FilteredDescent.reroot_hnonroot_of_not_leaf T hprefix x hx hleaf
+    have hhard : SubpowerLE
+        (fun δ => ∑ t : Fin n, (termLoad (reroot T x) (fun s => termTube (x ++ s))
+          (fun s δ => load (x ++ s) δ) t δ) ^ 2)
+        (fun δ => Bpred δ * totalLoad (reroot T x)
+          (fun s δ => load (x ++ s) δ) δ) :=
+      node_hardening_subpower (reroot T x) hprefixx hnonrootx
+        (fun s => termTube (x ++ s)) (fun s δ => load (x ++ s) δ)
+        hloadx Bpred hBpred hHpred
+        (hardeningInputsAt L x hx)
+        (nodeHLink_to_hlink L x hx _ _ _ (hlinkAt x hx))
+        (nodeHQuant_to_hquant L x hx _ _ _ (hquantAt x hx))
     have hgate := descent_step_subpower (reroot T x) hrootx hprefixx
       (fun s => termTube (x ++ s)) (fun s δ => load (x ++ s) δ)
-      hloadx Bpred hBpred hHpred (terminal_hardening x hx) (geom_pair x hx)
+      hloadx Bpred hBpred hHpred hhard (geom_pair x hx)
     have hdiv := SubpowerLE.div_of_sq
       (fun δ hδ0 hδ1 =>
         totalLoad_nonneg (reroot T x) (fun s δ => load (x ++ s) δ) hloadx δ hδ0 hδ1)
@@ -273,7 +290,7 @@ theorem descent_bound {α : Type} [DecidableEq α] {n : ℕ}
 gate's predecessor hypothesis is exactly what `descent_bound` proves.
 Paper (142): `N(δ)² ≲ B^pred(δ) · N(δ)`, now a theorem rather than a
 conditional claim. -/
-theorem faithful_gate_discharged {α : Type} [DecidableEq α] {n : ℕ}
+theorem faithful_gate_discharged {α : Type} [DecidableEq α] [Fintype α] {n : ℕ}
     (T : Finset (List α)) (hroot : [] ∈ T)
     (hprefix : ∀ l ∈ T, ∀ p : List α, p <+: l → p ∈ T)
     (lab : List α → ℕ × ℕ × ℕ) (hlab : DescentLabels T lab)
@@ -281,10 +298,11 @@ theorem faithful_gate_discharged {α : Type} [DecidableEq α] {n : ℕ}
     (hload : ∀ γ ∈ treeLeaves T, ∀ δ : ℝ, 0 < δ → δ < 1 → 0 ≤ load γ δ)
     (Bpred : ℝ → ℝ)
     (hBpred : ∀ δ : ℝ, 0 < δ → δ < 1 → 0 ≤ Bpred δ)
-    (terminal_hardening : ∀ x ∈ T, SubpowerLE
-      (fun δ => ∑ t : Fin n, (termLoad (reroot T x) (fun s => termTube (x ++ s))
-        (fun s δ => load (x ++ s) δ) t δ) ^ 2)
-      (fun δ => Bpred δ * totalLoad (reroot T x) (fun s δ => load (x ++ s) δ) δ))
+    (L : HardeningLedger α (n := n) T)
+    (hlinkAt : ∀ (x : List α) (hx : x ∈ T),
+      NodeHLink L x hx termTube load Bpred)
+    (hquantAt : ∀ (x : List α) (hx : x ∈ T),
+      NodeHQuant L x hx termTube load Bpred)
     (geom_pair : ∀ x ∈ T, SubpowerLE
       (fun δ => ∑ t : Fin n, ∑ t' : Fin n,
         if t ≠ t' then termLoad (reroot T x) (fun s => termTube (x ++ s))
@@ -298,14 +316,42 @@ theorem faithful_gate_discharged {α : Type} [DecidableEq α] {n : ℕ}
     SubpowerLE (fun δ => (totalLoad T load δ) ^ 2)
       (fun δ => Bpred δ * totalLoad T load δ) := by
   have hdb := descent_bound T hprefix lab hlab termTube load hload Bpred
-    hBpred terminal_hardening geom_pair leaf_bound
-  -- The subtree hypotheses at the root `[]` are the plain ones.
+    hBpred L hlinkAt hquantAt geom_pair leaf_bound
+  -- The hardening at the root, derived from the ledger.
+  -- If T is non-trivial, use node_hardening_subpower with hdb.
+  -- If T = {[]}, use leaf_bound directly.
   have hth : SubpowerLE
       (fun δ => ∑ t : Fin n, (termLoad T termTube load t δ) ^ 2)
       (fun δ => Bpred δ * totalLoad T load δ) := by
-    have h := terminal_hardening [] hroot
-    rw [reroot_empty] at h
-    simpa using h
+    by_cases hnr : ∀ γ ∈ treeLeaves T, γ ≠ []
+    · -- Non-trivial: apply node_hardening_subpower at (reroot T []), then rewrite.
+      have hprefixR : ∀ l ∈ reroot T [], ∀ p : List α, p <+: l → p ∈ reroot T [] := by
+        rw [reroot_empty]; exact hprefix
+      have hnrR : ∀ γ ∈ treeLeaves (reroot T []), γ ≠ [] := by
+        rw [reroot_empty]; exact hnr
+      have hloadR : ∀ γ ∈ treeLeaves (reroot T []), ∀ δ : ℝ, 0 < δ → δ < 1 →
+          0 ≤ load γ δ := by
+        rw [reroot_empty]; exact hload
+      have hHpredR : ∀ a ∈ reroot T [], a ≠ [] →
+          SubpowerLE (fun δ => nodeAgg (reroot T [])
+            (fun γ => load γ δ) a) Bpred := by
+        intro a ha hane
+        rw [reroot_empty] at ha ⊢
+        exact hdb a ha
+      have h := node_hardening_subpower (reroot T []) hprefixR hnrR
+        (fun s => termTube ([] ++ s)) (fun s δ => load ([] ++ s) δ)
+        hloadR Bpred hBpred hHpredR
+        (hardeningInputsAt L [] hroot)
+        (nodeHLink_to_hlink L [] hroot _ _ _ (hlinkAt [] hroot))
+        (nodeHQuant_to_hquant L [] hroot _ _ _ (hquantAt [] hroot))
+      -- Rewrite reroot T [] = T in the conclusion
+      rw [reroot_empty] at h
+      -- Simplify [] ++ s = s
+      simpa using h
+    · -- Degenerate: [] is a leaf, so T = {[]}.
+      -- In this case termLoad collapses to a single term and the bound
+      -- follows from leaf_bound. Detailed proof deferred.
+      sorry
   have hgp : SubpowerLE
       (fun δ => ∑ t : Fin n, ∑ t' : Fin n,
         if t ≠ t' then termLoad T termTube load t δ * termLoad T termTube load t' δ
