@@ -127,6 +127,21 @@ structure Shading (F : TubeFamily n d) where
   measurable : ∀ t δ, 0 < δ → δ < 1 → MeasurableSet (Y t δ)
   subset_tube : ∀ t δ, 0 < δ → δ < 1 → Y t δ ⊆ F.tube t δ
 
+/-- Scale-indexed physical configuration (TODO_GUIDANCE P0-2).
+
+For Kakeya finite-scale asymptotics, the tube family changes with `δ` and
+its cardinality may grow like a power of `δ^{-1}`. This bundles the
+`δ`-dependent `n`, family, and shading; the realized `ShadedTubes` is
+derived via `physicalRealization`.
+
+The final scalar theorem quantifies over the configuration *after* choosing
+the uniform constant (see `UniformSubpowerLE`). -/
+structure PhysicalConfig (d : ℕ) (δ : ℝ) where
+  n : ℕ
+  family : TubeFamily n d
+  shading : Shading family
+  hpos : ∀ δ', 0 < δ' → δ' < 1 → 0 < (volume (⋃ t, shading.Y t δ')).toReal
+
 /-- Realization: a direction-separated physical tube family with measurable
 shadings realizes the abstract `ShadedTubes` analytic interface, with
 `shadeVol t δ = (volume (Y t δ)).toReal`,
@@ -175,5 +190,11 @@ noncomputable def physicalRealization (F : TubeFamily n d) (S : Shading F)
     show (volume (S.Y t δ)).toReal ≤ (volume (⋃ t, S.Y t δ)).toReal
     exact (ENNReal.toReal_le_toReal (hfin t δ h0 h1) (hUfin δ h0 h1)).mpr
       (measure_mono (Set.subset_iUnion (fun t => S.Y t δ) t))
+
+/-- The realized abstract shading interface for a physical configuration. -/
+noncomputable def PhysicalConfig.realized {d : ℕ} {δ : ℝ}
+    (cfg : PhysicalConfig d δ) : ShadedTubes cfg.n :=
+  physicalRealization cfg.family cfg.shading cfg.hpos
+
 
 end FilteredDescent
