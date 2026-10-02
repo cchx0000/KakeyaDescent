@@ -3,6 +3,8 @@ import Mathlib.Data.Real.Basic
 
 namespace FilteredDescent
 
+universe u
+
 /-- Subpower-loss domination `x ≲ y` uniformly for `δ ∈ (0,1)` (paper's `≲ δ^{-o(1)}`).
 
   For every `ε > 0` there is a constant `C ≥ 0` — allowed to depend on `ε`
@@ -25,7 +27,7 @@ This blocks the trivial `C = n` proof: when `n = n(δ)` grows with `δ`
 (e.g. `n(δ) ≍ δ^{-(d-1)}`), no fixed `C` works.
 
 The configuration type may depend on `δ` (scale-indexed families). -/
-def UniformSubpowerLE (Config : ℝ → Type)
+def UniformSubpowerLE (Config : ℝ → Type u)
     (X Y : ∀ δ : ℝ, Config δ → ℝ) : Prop :=
   ∀ ε : ℝ, 0 < ε → ∃ C : ℝ, 0 ≤ C ∧ ∀ δ : ℝ, 0 < δ → δ < 1 →
     ∀ cfg : Config δ, X δ cfg ≤ C * δ ^ (-ε) * Y δ cfg
@@ -171,7 +173,7 @@ theorem uniform_not_trivial :
   linarith [hcon, hlt]
 
 /-- Uniform subpower domination is reflexive on quantities nonnegative on `(0,1)`. -/
-theorem UniformSubpowerLE.refl {Config : ℝ → Type}
+theorem UniformSubpowerLE.refl {Config : ℝ → Type u}
     {X : ∀ δ : ℝ, Config δ → ℝ}
     (hx : ∀ δ : ℝ, 0 < δ → δ < 1 → ∀ cfg : Config δ, 0 ≤ X δ cfg) :
     UniformSubpowerLE Config X X := by
@@ -187,7 +189,7 @@ theorem UniformSubpowerLE.refl {Config : ℝ → Type}
     _ = 1 * δ ^ (-ε) * X δ cfg := by ring
 
 /-- Chaining a uniform subpower bound through a middle factor. -/
-theorem UniformSubpowerLE.trans_right {Config : ℝ → Type}
+theorem UniformSubpowerLE.trans_right {Config : ℝ → Type u}
     {X Y Z : ∀ δ : ℝ, Config δ → ℝ}
     (hxy : UniformSubpowerLE Config X Y) (hyz : UniformSubpowerLE Config Y Z) :
     UniformSubpowerLE Config X Z := by
@@ -206,7 +208,7 @@ theorem UniformSubpowerLE.trans_right {Config : ℝ → Type}
     _ = (C₁ * C₂) * δ ^ (-ε) * Z δ cfg := by rw [hpow]; ring
 
 /-- Pointwise uniform bound with a constant lifts to `UniformSubpowerLE`. -/
-theorem UniformSubpowerLE.of_le_const {Config : ℝ → Type}
+theorem UniformSubpowerLE.of_le_const {Config : ℝ → Type u}
     {X Y : ∀ δ : ℝ, Config δ → ℝ} {K : ℝ}
     (hK : 0 ≤ K)
     (hf : ∀ δ : ℝ, 0 < δ → δ < 1 → ∀ cfg : Config δ, X δ cfg ≤ K * Y δ cfg)
