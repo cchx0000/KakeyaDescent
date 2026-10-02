@@ -819,4 +819,75 @@ def carrierBounded {α : Type} [DecidableEq α] {n : ℕ}
   ∀ k : ℕ × ℕ, ((nodesWithKey T modelOf k).image (fun p => (modelOf p).carrier)).card
     ≤ Ccard
 
+/-- Per-subtree hardening interface (paper (148), (153)): each proper
+subtree, with its (θ,j,c) data, satisfies the terminal hardening bound.
+
+- `Bpred`: the predecessor bound `B^{pred}` (paper (138));
+- `bound`: the hardening bound as a function of model data;
+- The interface says: for every node `p` in the tree, the aggregate
+  load of the subtree rooted at `p` is bounded by `bound (modelOf p)`.
+
+This is the form in which stream B's `terminal_hardening` is applied
+per-subtree; the concrete `bound` comes from (148) with the (150)–(153)
+inputs `hlink/hquant/hcard`. -/
+def PerSubtreeHardened {α : Type} [DecidableEq α] {n : ℕ}
+    (T : Finset (List (DescentState α n)))
+    (modelOf : List (DescentState α n) → ModelData)
+    (W : List (DescentState α n) → ℝ)
+    (bound : ModelData → ℝ) : Prop :=
+  ∀ p ∈ T, ∑ q ∈ T.filter (fun q => p <+: q), W q ≤ bound (modelOf p)
+
+/-- Per-carrier hardening: for fixed key `(θ,j)` and carrier `c`,
+the sum over nodes with that carrier is bounded.  This is the form of
+(148) after the common-source aggregation: each `W^{θ,j,c}` satisfies
+the hardening bound. -/
+def PerCarrierHardened {α : Type} [DecidableEq α] {n : ℕ}
+    (T : Finset (List (DescentState α n)))
+    (modelOf : List (DescentState α n) → ModelData)
+    (W : List (DescentState α n) → ℝ)
+    (supB : ℝ) : Prop :=
+  ∀ k : ℕ × ℕ, ∀ c : ℕ,
+    ∑ p ∈ (nodesWithKey T modelOf k).filter (fun p => (modelOf p).carrier = c),
+      W p ≤ supB
+
+/-- Aggregation of per-carrier hardening (paper (153)): summing over
+carriers, using `|C_κ|` from (152).
+
+`W^{θ,j} = Σ_c W^{θ,j,c} ≤ |C_κ| * supB`. -/
+theorem agg_hardening {α : Type} [DecidableEq α] {n : ℕ}
+    (T : Finset (List (DescentState α n)))
+    (modelOf : List (DescentState α n) → ModelData)
+    (W : List (DescentState α n) → ℝ)
+    (Ccard supB : ℝ) (hsupB : 0 ≤ supB)
+    (hC : carrierBounded T modelOf Ccard)
+    (hh : PerCarrierHardened T modelOf W supB) :
+    ∀ k : ℕ × ℕ, aggLoad T modelOf W k ≤ Ccard * supB := by
+  intro k
+  unfold aggLoad
+  -- Partition nodesWithKey k by carrier
+  have hpart : ∑ p ∈ nodesWithKey T modelOf k, W p
+      = ∑ c ∈ (nodesWithKey T modelOf k).image (fun p => (modelOf p).carrier),
+        ∑ p ∈ (nodesWithKey T modelOf k).filter (fun p => (modelOf p).carrier = c), W p := by
+    symm
+    apply Finset.sum_fiberwise_of_maps_to (g := fun p : List (DescentState α n) => (modelOf p).carrier)
+    intro p hp
+    exact Finset.mem_image_of_mem _ hp
+  rw [hpart]
+  -- Each inner sum ≤ supB, number of carriers ≤ Ccard
+  calc ∑ c ∈ (nodesWithKey T modelOf k).image (fun p => (modelOf p).carrier),
+        ∑ p ∈ (nodesWithKey T modelOf k).filter (fun p => (modelOf p).carrier = c), W p
+      ≤ ∑ c ∈ (nodesWithKey T modelOf k).image (fun p => (modelOf p).carrier), supB := by
+        apply Finset.sum_le_sum
+        intro c _
+        exact hh k c
+    _ = ((nodesWithKey T modelOf k).image (fun p => (modelOf p).carrier)).card * supB := by
+        rw [Finset.sum_const, nsmul_eq_mul]
+    _ ≤ Ccard * supB := by
+        have hcard : (((nodesWithKey T modelOf k).image (fun p => (modelOf p).carrier)).card : ℝ)
+          ≤ Ccard := by
+          have h := hC k
+          -- h : card ≤ Ccard (ℕ ≤ ℝ); need cast
+          exact_mod_cast h
+        apply mul_le_mul_of_nonneg_right hcard hsupB
+
 end FilteredDescent
