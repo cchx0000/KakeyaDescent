@@ -84,7 +84,7 @@ the tree load `N(δ)` with the tube-family shading sum; dividing by `N(δ)`
 
 Every hypothesis is consumed; the remaining named inputs are (1)–(5) in
 the module docstring. -/
-theorem scalar_closure_discharged {α : Type} [DecidableEq α] {n : ℕ}
+theorem scalar_closure_discharged {α : Type} [DecidableEq α] [Fintype α] {n : ℕ}
     (S : ShadedTubes n)
     (T : Finset (List α)) (hroot : [] ∈ T)
     (hprefix : ∀ l ∈ T, ∀ p : List α, p <+: l → p ∈ T)
@@ -94,11 +94,11 @@ theorem scalar_closure_discharged {α : Type} [DecidableEq α] {n : ℕ}
     (htotalLoad : ∀ δ, totalLoad T load δ = ∑ t, S.shadeVol t δ)
     (leaf_bound : ∀ γ ∈ treeLeaves T, ∀ δ : ℝ, 0 < δ → δ < 1 →
       load γ δ ≤ S.unionVol δ)
-    (terminal_hardening : ∀ x ∈ T, SubpowerLE
-      (fun δ => ∑ t : Fin n, (termLoad (reroot T x) (fun s => termTube (x ++ s))
-        (fun s δ => load (x ++ s) δ) t δ) ^ 2)
-      (fun δ => S.unionVol δ * totalLoad (reroot T x)
-        (fun s δ => load (x ++ s) δ) δ))
+    (L : HardeningLedger α (n := n) T)
+    (hlinkAt : ∀ (x : List α) (hx : x ∈ T),
+      NodeHLink L x hx termTube load S.unionVol)
+    (hquantAt : ∀ (x : List α) (hx : x ∈ T),
+      NodeHQuant L x hx termTube load S.unionVol)
     (geom_pair : ∀ x ∈ T, SubpowerLE
       (fun δ => ∑ t : Fin n, ∑ t' : Fin n,
         if t ≠ t' then termLoad (reroot T x) (fun s => termTube (x ++ s))
@@ -115,7 +115,7 @@ theorem scalar_closure_discharged {α : Type} [DecidableEq α] {n : ℕ}
       (fun δ => S.unionVol δ * totalLoad T load δ) :=
     faithful_gate_discharged T hroot hprefix lab hlab termTube load hload
       S.unionVol (fun δ hδ0 hδ1 => S.union_nonneg δ hδ0 hδ1)
-      terminal_hardening geom_pair leaf_bound
+      L hlinkAt hquantAt geom_pair leaf_bound
   -- Bridges (faithful §10, (136)/(145)): tree load = tube-family shading.
   have hNL' : SubpowerLE (fun δ => (∑ t, S.shadeVol t δ) ^ 2)
       (fun δ => S.unionVol δ * ∑ t, S.shadeVol t δ) := by
@@ -157,7 +157,7 @@ theorem scalar_closure_discharged {α : Type} [DecidableEq α] {n : ℕ}
 to the real physical tube model (`physicalRealization`, Lebesgue-measurable
 shading).  The abstract `ShadedTubes` interface is discharged by genuine
 geometry; the predecessor invariance is discharged by the descent. -/
-theorem scalar_closure_discharged_physical {α : Type} [DecidableEq α] {n d : ℕ}
+theorem scalar_closure_discharged_physical {α : Type} [DecidableEq α] [Fintype α] {n d : ℕ}
     (fam : TubeFamily n d) (sh : Shading fam)
     (hpos : ∀ δ, 0 < δ → δ < 1 → 0 < (volume (⋃ t, sh.Y t δ)).toReal)
     (T : Finset (List α)) (hroot : [] ∈ T)
@@ -169,11 +169,11 @@ theorem scalar_closure_discharged_physical {α : Type} [DecidableEq α] {n d : �
       ∑ t, (physicalRealization fam sh hpos).shadeVol t δ)
     (leaf_bound : ∀ γ ∈ treeLeaves T, ∀ δ : ℝ, 0 < δ → δ < 1 →
       load γ δ ≤ (physicalRealization fam sh hpos).unionVol δ)
-    (terminal_hardening : ∀ x ∈ T, SubpowerLE
-      (fun δ => ∑ t : Fin n, (termLoad (reroot T x) (fun s => termTube (x ++ s))
-        (fun s δ => load (x ++ s) δ) t δ) ^ 2)
-      (fun δ => (physicalRealization fam sh hpos).unionVol δ * totalLoad (reroot T x)
-        (fun s δ => load (x ++ s) δ) δ))
+    (L : HardeningLedger α (n := n) T)
+    (hlinkAt : ∀ (x : List α) (hx : x ∈ T),
+      NodeHLink L x hx termTube load (physicalRealization fam sh hpos).unionVol)
+    (hquantAt : ∀ (x : List α) (hx : x ∈ T),
+      NodeHQuant L x hx termTube load (physicalRealization fam sh hpos).unionVol)
     (geom_pair : ∀ x ∈ T, SubpowerLE
       (fun δ => ∑ t : Fin n, ∑ t' : Fin n,
         if t ≠ t' then termLoad (reroot T x) (fun s => termTube (x ++ s))
@@ -187,7 +187,7 @@ theorem scalar_closure_discharged_physical {α : Type} [DecidableEq α] {n d : �
       (physicalRealization fam sh hpos).unionVol :=
   scalar_closure_discharged (physicalRealization fam sh hpos) T hroot hprefix
     lab hlab termTube load hload htotalLoad leaf_bound
-    terminal_hardening geom_pair
+    L hlinkAt hquantAt geom_pair
 
 /-- Scalar closure on the *constructed* symmetric tree (Stream F, M5).
 
@@ -346,10 +346,8 @@ theorem scalar_closure_constructed {n B H₀ C₀ : ℕ} (hn : 0 < n) (hB : 0 < 
       rw [htotalLoad_symm hn S δ x]
     rw [hfun1, hfun2]
     exact hsub
-  exact scalar_closure_discharged (α := DMark n B) S (descTree n B H₀ C₀)
-    descTree_root (fun l hl p hpp => descTree_prefix hl hpp)
-    (dlab n H₀ C₀) descTree_labels
-    (termTube hn) (fun γ δ => descentLoad H₀ S δ hn γ)
-    hload htotalLoad hleaf hterm hgeom
+  -- TODO: construct HardeningLedger for the symmetric descTree.
+  -- The hterm (terminal_hardening_symm) needs to be replaced by ledger data.
+  sorry
 
 end FilteredDescent
