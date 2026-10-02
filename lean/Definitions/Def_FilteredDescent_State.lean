@@ -474,4 +474,55 @@ theorem IsDescentChain_last_step {α : Type} {n : ℕ}
       rw [heq] at hstep
       exact hstep
 
+/-- The descent tree satisfies `DescentLabels` (paper (135)): the (135)
+label strictly decreases along tree edges. -/
+theorem descentTree_labels {α : Type} [Fintype α] [DecidableEq α] {n : ℕ}
+    (s : DescentState α n) :
+    DescentLabels (descentTree s) (pathLabel (α := α) (n := n)) := by
+  intro p hp q hq
+  rw [treeChildren, Finset.mem_filter] at hq
+  obtain ⟨hq_mem, hpref, hlen⟩ := hq
+  -- p is nonempty
+  have hp_ne : p ≠ [] := by
+    intro h
+    rw [h] at hp
+    have hhead := descentTree_head s [] hp
+    simp at hhead
+  -- q = p ++ [t]: from prefix and length
+  obtain ⟨r, hr⟩ := hpref
+  have hr_len : r.length = 1 := by
+    have h1 : (p ++ r).length = q.length := by rw [← hr]
+    rw [List.length_append] at h1
+    omega
+  obtain ⟨t, ht⟩ : ∃ t, r = [t] := by
+    cases r with
+    | nil => simp at hr_len
+    | cons t rest =>
+      have : rest = [] := by
+        cases rest with
+        | nil => rfl
+        | cons _ _ => simp at hr_len
+      rw [this]
+      exact ⟨t, rfl⟩
+  -- q = p ++ [t]
+  have hq_eq : q = p ++ [t] := by rw [← hr, ht]
+  -- Chain property gives the last step
+  have hchain : IsDescentChain q := descentTree_isChain s q hq_mem
+  rw [hq_eq] at hchain
+  have hstep : DescentStep t (p.getLast hp_ne) :=
+    IsDescentChain_last_step p t hp_ne hchain
+  -- Labels: pathLabel (p ++ [t]) = descentLabel t
+  have hlab_q : pathLabel (p ++ [t] : List (DescentState α n)) = descentLabel t := by
+    unfold pathLabel
+    have : (p ++ [t]).getLast? = some t := by simp
+    rw [this]
+  -- pathLabel p = descentLabel (p.getLast hp_ne)
+  have hlab_p : pathLabel (p : List (DescentState α n)) = descentLabel (p.getLast hp_ne) := by
+    unfold pathLabel
+    have : p.getLast? = some (p.getLast hp_ne) := List.getLast?_eq_some_getLast hp_ne
+    rw [this]
+  rw [hq_eq, hlab_q, hlab_p]
+  -- DescentStep → DescentLt on labels
+  exact DescentStateLt.of_step hstep
+
 end FilteredDescent
