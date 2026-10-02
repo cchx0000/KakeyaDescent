@@ -573,4 +573,113 @@ theorem packetChildren_card_le {α : Type} [Fintype α] [DecidableEq α]
   le_trans (Finset.card_le_card (packetChildren_subset s sel))
     (successors_card_le s)
 
+/-! ## F4a-3: Packet-selected subtree -/
+
+/-- The packet-selected subtree: at each node, only the packet-realized
+children (`packetChildren`) are taken, not all successors.  This is the
+paper's tree `T_{I,k}` ("contains only the retained structural labels").
+
+`selOf` gives the packet selection data at each state. -/
+noncomputable def selectedTree {α : Type} [Fintype α] [DecidableEq α]
+    {n r : ℕ} (s : DescentState α n)
+    (selOf : DescentState α n → PacketSelect α n r) :
+    Finset (List (DescentState α n)) :=
+  DescentStep.wellFounded.fix
+    (fun s ih =>
+      {[s]} ∪ (packetChildren s (selOf s)).attach.biUnion (fun ⟨t, ht⟩ =>
+        (ih t (packetChildren_are_steps s (selOf s) t ht)).image (fun p => s :: p)))
+    s
+
+/-- Unfolding equation for the selected tree. -/
+theorem selectedTree_unfold {α : Type} [Fintype α] [DecidableEq α]
+    {n r : ℕ} (s : DescentState α n)
+    (selOf : DescentState α n → PacketSelect α n r) :
+    selectedTree s selOf
+      = {[s]} ∪ (packetChildren s (selOf s)).attach.biUnion (fun ⟨t, _⟩ =>
+        (selectedTree t selOf).image (fun p => s :: p)) := by
+  unfold selectedTree
+  rw [WellFounded.fix_eq]
+
+/-- The selected tree is a subtree of the full descent tree. -/
+theorem selectedTree_subset {α : Type} [Fintype α] [DecidableEq α]
+    {n r : ℕ} (s : DescentState α n)
+    (selOf : DescentState α n → PacketSelect α n r) :
+    selectedTree s selOf ⊆ descentTree s := by
+  induction s using WellFounded.induction DescentStep.wellFounded
+    generalizing selOf with
+  | _ s ih =>
+    intro p hp
+    rw [selectedTree_unfold] at hp
+    rw [Finset.mem_union] at hp
+    rcases hp with hp | hp
+    · -- p = [s]: in the full tree by root_mem
+      rw [Finset.mem_singleton] at hp
+      rw [hp]
+      exact descentTree_root_mem s
+    · -- p = s :: q, q ∈ selectedTree t for t ∈ packetChildren
+      rw [Finset.mem_biUnion] at hp
+      obtain ⟨⟨t, ht⟩, _, hp⟩ := hp
+      rw [Finset.mem_image] at hp
+      obtain ⟨q, hq, rfl⟩ := hp
+      have hstep : DescentStep t s :=
+        packetChildren_are_steps s (selOf s) t ht
+      have hq_mem : q ∈ descentTree t := ih t hstep selOf hq
+      have ht_succ : t ∈ successors s :=
+        packetChildren_subset s (selOf s) ht
+      rw [descentTree_unfold]
+      apply Finset.mem_union_right
+      rw [Finset.mem_biUnion]
+      refine ⟨⟨t, ht_succ⟩, Finset.mem_attach _ _, ?_⟩
+      rw [Finset.mem_image]
+      exact ⟨q, hq_mem, rfl⟩
+
+/-- The packet-selected tree satisfies `DescentLabels`: (135) labels
+decrease along its edges (inherited from the full tree via the subset
+and chain property). -/
+theorem selectedTree_labels {α : Type} [Fintype α] [DecidableEq α]
+    {n r : ℕ} (s : DescentState α n)
+    (selOf : DescentState α n → PacketSelect α n r) :
+    DescentLabels (selectedTree s selOf) (pathLabel (α := α) (n := n)) := by
+  intro p hp q hq
+  rw [treeChildren, Finset.mem_filter] at hq
+  obtain ⟨hq_mem, hpref, hlen⟩ := hq
+  have hp_ne : p ≠ [] := by
+    intro h
+    rw [h] at hp
+    have hsub := selectedTree_subset s selOf hp
+    have hhead := descentTree_head s [] hsub
+    simp at hhead
+  obtain ⟨rr, hr⟩ := hpref
+  have hr_len : rr.length = 1 := by
+    have h1 : (p ++ rr).length = q.length := by rw [← hr]
+    rw [List.length_append] at h1
+    omega
+  obtain ⟨t, ht⟩ : ∃ t, rr = [t] := by
+    cases rr with
+    | nil => simp at hr_len
+    | cons t rest =>
+      have : rest = [] := by
+        cases rest with
+        | nil => rfl
+        | cons _ _ => simp at hr_len
+      rw [this]
+      exact ⟨t, rfl⟩
+  have hq_eq : q = p ++ [t] := by rw [← hr, ht]
+  -- q is a descent chain via the full tree
+  have hq_sub : q ∈ descentTree s := selectedTree_subset s selOf hq_mem
+  have hchain : IsDescentChain q := descentTree_isChain s q hq_sub
+  rw [hq_eq] at hchain
+  have hstep : DescentStep t (p.getLast hp_ne) :=
+    IsDescentChain_last_step p t hp_ne hchain
+  have hlab_q : pathLabel (p ++ [t] : List (DescentState α n)) = descentLabel t := by
+    unfold pathLabel
+    have : (p ++ [t]).getLast? = some t := by simp
+    rw [this]
+  have hlab_p : pathLabel (p : List (DescentState α n)) = descentLabel (p.getLast hp_ne) := by
+    unfold pathLabel
+    have : p.getLast? = some (p.getLast hp_ne) := List.getLast?_eq_some_getLast hp_ne
+    rw [this]
+  rw [hq_eq, hlab_q, hlab_p]
+  exact DescentStateLt.of_step hstep
+
 end FilteredDescent
