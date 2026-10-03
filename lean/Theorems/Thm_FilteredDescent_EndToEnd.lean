@@ -330,9 +330,30 @@ theorem scalar_closure_constructed {n B H₀ C₀ : ℕ} (hn : 0 < n) (hB : 0 < 
       rw [htotalLoad_symm hn S δ x]
     rw [hfun1, hfun2]
     exact hsub
-  -- TODO: construct HardeningLedger for the symmetric descTree, plus
-  -- NodeHLink/NodeHQuant from hterm/hgeom. The hterm proof above shows
-  -- the hardening holds; it needs to be packaged into the ledger interface.
-  sorry
+  -- Direct crude bound (model validation): totalLoad ≤ (leaf count) * unionVol.
+  -- The hterm/hgeom above are the sharp hardening; for the scalar closure
+  -- statement, the leaf-wise bound suffices via of_le_const.
+  have hcard_le : ∀ δ : ℝ, 0 < δ → δ < 1 →
+      totalLoad (descTree n B H₀ C₀) (fun γ δ => descentLoad H₀ S δ hn γ) δ
+        ≤ ((treeLeaves (descTree n B H₀ C₀)).card : ℝ) * S.unionVol δ := by
+    intro δ hδ0 hδ1
+    unfold totalLoad
+    calc ∑ γ ∈ treeLeaves (descTree n B H₀ C₀), descentLoad H₀ S δ hn γ
+        ≤ ∑ _γ ∈ treeLeaves (descTree n B H₀ C₀), S.unionVol δ := by
+          apply Finset.sum_le_sum
+          intro γ hγ
+          exact hleaf γ hγ δ hδ0 hδ1
+      _ = ((treeLeaves (descTree n B H₀ C₀)).card : ℝ) * S.unionVol δ := by
+          rw [Finset.sum_const, nsmul_eq_mul]
+  have hgoal : (fun δ => ∑ t, S.shadeVol t δ)
+      = (fun δ => totalLoad (descTree n B H₀ C₀)
+          (fun γ δ => descentLoad H₀ S δ hn γ) δ) := by
+    funext δ
+    exact (htotalLoad δ).symm
+  rw [hgoal]
+  apply SubpowerLE.of_le_const (K := ((treeLeaves (descTree n B H₀ C₀)).card : ℝ))
+  · positivity
+  · exact hcard_le
+  · exact hU_nonneg
 
 end FilteredDescent
