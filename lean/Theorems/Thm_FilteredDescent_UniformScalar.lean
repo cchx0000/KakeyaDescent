@@ -251,6 +251,19 @@ be proved source-derived (via `pathMass`/`u_γ`), not an arbitrary function.
 Only then can the restricted shading `Y_x` be constructed with
 `volume(Y_x t δ) = termLoad_x t δ`.
 -/
+
+-- Measure theory lemma for P0-4 (honest sorry).
+-- Given a measurable set S with volume V, and target v in [0,V],
+-- there exists a measurable subset S' ⊆ S with volume v.
+-- Uses nonatomicity of Lebesgue measure. Proof deferred.
+theorem exists_subset_volume {d : ℕ}
+    (S : Set (EuclideanSpace ℝ (Fin d))) (hS : MeasurableSet S)
+    (V : ℝ) (hV : (MeasureTheory.volume S).toReal = V)
+    (v : ℝ) (hv0 : 0 ≤ v) (hvV : v ≤ V) :
+    ∃ S' : Set (EuclideanSpace ℝ (Fin d)),
+      MeasurableSet S' ∧ S' ⊆ S ∧ (MeasureTheory.volume S').toReal = v := by
+  sorry
+
 noncomputable def admGeomConfigOfSubtree {d : ℕ} {α : Type} [DecidableEq α] [Fintype α]
     {δ₀ : ℝ} (cfg : UniformScalarConfig d α δ₀) (x : List α) (hx : x ∈ cfg.T)
     (δ : ℝ) (hδ0 : 0 < δ) :
