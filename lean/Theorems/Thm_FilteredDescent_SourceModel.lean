@@ -107,4 +107,69 @@ theorem scalar_closure_from_source {α : Type} [Fintype α] [DecidableEq α]
   let M := FaithfulModel.ofPacketSource src S termTube rep hrep_mem hrep_tube
   exact scalar_closure_faithful_full s S M L hlinkAt hquantAt geom_pair
 
+/-- Root compatibility from the source model (item 6 remainder, root case).
+
+For the source-derived `loadOf` (rep-based), the per-tube terminal load
+at the root equals the tube shading: `termLoad T termTube loadOf t δ =
+shadeVol t δ`. The sum over `γ` with `termTube γ = t` collapses to the
+single representative `rep t` (injectivity of `rep` via `hrep_tube`).
+
+This discharges `hcompat_sub` in `geom_pair_of_geomInput` at `x = []`.
+For general `x`, compatibility needs the subtree to contain all
+representatives (a covering hypothesis, not proved here).
+-/
+theorem hcompat_of_source_root {α : Type} [Fintype α] [DecidableEq α]
+    {n r : ℕ} [NeZero n] (src : PacketSource α n r) (S : ShadedTubes n)
+    (s : DescentState α n)
+    (termTube : List (DescentState α n) → Fin n)
+    (rep : Fin n → List (DescentState α n))
+    (hrep_mem : ∀ (s : DescentState α n) (t : Fin n),
+      rep t ∈ treeLeaves (faithfulTree0 s (fun s => packetSelectOfSource src s)))
+    (hrep_tube : ∀ t, termTube (rep t) = t) :
+    ∀ (δ : ℝ) (t : Fin n),
+      termLoad (faithfulTree0 s (fun s => packetSelectOfSource src s))
+        termTube
+        (FaithfulModel.ofPacketSource src S termTube rep hrep_mem hrep_tube).loadOf
+        t δ = S.shadeVol t δ := by
+  intro δ t
+  -- rep is injective
+  have hinj : Function.Injective rep := by
+    intro t₁ t₂ h
+    have e1 := hrep_tube t₁
+    have e2 := hrep_tube t₂
+    rw [h] at e1
+    rw [← e1, e2]
+  -- Unfold termLoad and the loadOf definition
+  simp only [termLoad, FaithfulModel.ofPacketSource]
+  -- Goal: ∑ γ ∈ (treeLeaves ...).filter (fun γ => termTube γ = t),
+  --         (if γ ∈ image rep univ then shadeVol (termTube γ) δ else 0)
+  --       = shadeVol t δ
+  rw [Finset.sum_eq_single (rep t)]
+  · -- Main term: γ = rep t contributes shadeVol t δ
+    have hmem_img : rep t ∈ Finset.image rep Finset.univ := by simp
+    rw [if_pos hmem_img, hrep_tube t]
+  · -- Other γ with termTube γ = t contribute 0
+    intro γ hγ hne
+    rw [Finset.mem_filter] at hγ
+    obtain ⟨hγ_mem, hγ_tube⟩ := hγ
+    by_cases himg : γ ∈ Finset.image rep Finset.univ
+    · rw [Finset.mem_image] at himg
+      obtain ⟨t', _, ht'eq⟩ := himg
+      -- termTube γ = t' (by hrep_tube) = t (by hγ_tube), so t' = t
+      have ht't : t' = t := by
+        have e1 : termTube (rep t') = t' := hrep_tube t'
+        rw [ht'eq] at e1  -- e1 : termTube γ = t'
+        rw [hγ_tube] at e1  -- e1 : t = t'
+        exact e1.symm
+      -- γ = rep t' = rep t, contradiction
+      have hcontra : γ = rep t := by rw [← ht'eq, ht't]
+      exact absurd hcontra hne
+    · rw [if_neg himg]
+  · -- rep t ∈ filter, so the "absent" case is vacuous
+    intro habs
+    have h1 : rep t ∈ treeLeaves
+        (faithfulTree0 s (fun s => packetSelectOfSource src s)) := hrep_mem s t
+    have h2 : termTube (rep t) = t := hrep_tube t
+    exact False.elim (habs (Finset.mem_filter.mpr ⟨h1, h2⟩))
+
 end FilteredDescent
