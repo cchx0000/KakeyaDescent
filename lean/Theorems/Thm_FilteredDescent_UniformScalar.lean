@@ -324,21 +324,17 @@ The bound hypothesis is the precise gap: P1-9 must prove that the
 source-derived `load` (via `pathMass`) satisfies
 `termLoad_x t δ' ≤ shadeVol t δ'`.
 -/
+
+-- Restricted shading for subtree x (P0-4b).
+-- Construction via exists_subset_volume; details deferred.
 noncomputable def restrictedShading {d : ℕ} {α : Type} [DecidableEq α] [Fintype α]
     {δ₀ : ℝ} (cfg : UniformScalarConfig d α δ₀) (x : List α) (hx : x ∈ cfg.T)
     (hbound : ∀ t δ', 0 < δ' → δ' < 1 →
       subtreeTermLoad cfg x t δ' ≤
         (MeasureTheory.volume (cfg.phys.shading.Y t δ')).toReal) :
     Shading cfg.phys.family :=
-  -- Construction via exists_subset_volume (details deferred).
-  -- For each t, δ', choose a measurable subset of Y t δ' with volume
-  -- exactly subtreeTermLoad cfg x t δ'. The measurability and subset
-  -- properties follow from the lemma's guarantee.
   sorry
 
--- NOTE (TODO_GUIDANCE P0-4): The `uniformGeomPair_to_local` lemma (deriving
--- per-subtree `SubpowerLE` from `hU.geom`) was removed. It required the
--- `AdmissibleGeomConfig` to carry the subtree's `termLoad`, but P0-3 fixed the
 -- uninhabited issue by deriving the load from the source. The correct P0-4
 -- construction builds a RESTRICTED physical source `S_x` for each subtree `x`,
 -- with `S_x.shadeVol = termLoad` of the re-rooted subtree. That construction
