@@ -143,9 +143,30 @@ structure UniformDescentComplexity (d : ℕ) where
   support/confluence/Cartan, etc.) with uniform subpower bounds. -/
   placeholder : True := trivial
 
-/-- Combined uniform descent assumptions (TODO_GUIDANCE P0-1).
+/-- Uniform separation bound (TODO_GUIDANCE P0-8).
 
-Bundles the three uniform certificates. Every constant herein is chosen
+Global direction-separation constant chosen before the varying configuration.
+Prevents an admissible sequence from weakening the geometric hypothesis by
+sending its private `TubeFamily.sep` to zero.
+-/
+structure UniformSeparation (d : ℕ) where
+  /-- Uniform lower bound on direction separation. -/
+  sep_bound : ℝ
+  sep_pos : 0 < sep_bound
+
+/-- Separation compatibility (TODO_GUIDANCE P0-8).
+
+A `TubeFamily` is compatible with the uniform separation bound if its
+`sep` is at least `sep_bound`. This ensures the `sep * δ ≤ ‖dir t - dir t'‖`
+hypothesis holds uniformly, not with a configuration-dependent `sep → 0`.
+-/
+def SepCompatible {n d : ℕ} (F : TubeFamily n d)
+    (sepU : UniformSeparation d) : Prop :=
+  sepU.sep_bound ≤ F.sep
+
+/-- Combined uniform descent assumptions (TODO_GUIDANCE P0-1, P0-8).
+
+Bundles the uniform certificates. Every constant herein is chosen
 before the physical configuration is quantified, ensuring the top-level
 uniform theorem cannot be proved by post-processing local constants.
 -/
@@ -153,6 +174,7 @@ structure UniformDescentAssumptions (d : ℕ) where
   geom : UniformGeomInput d
   hard : UniformHardeningBudget d
   comp : UniformDescentComplexity d
+  sepU : UniformSeparation d
 
 /-- Configuration for the uniform scalar closure.
 
@@ -266,7 +288,11 @@ theorem scalar_closure_uniform {d : ℕ}
     -- Without this, a config with huge `card K` or tiny `c₀` could break uniformity.
     -- P0-7: α is now inside the bundled config, so C cannot depend on it.
     (hcompat : ∀ δ : ℝ, ∀ cfg : BundledUniformScalarConfig d δ,
-      LedgerBudgetCompatible cfg.cfg.L hU.hard) :
+      LedgerBudgetCompatible cfg.cfg.L hU.hard)
+    -- P0-8: direction separation must respect the uniform bound.
+    -- Without this, a config could send its private `sep` to zero.
+    (hsepcompat : ∀ δ : ℝ, ∀ cfg : BundledUniformScalarConfig d δ,
+      SepCompatible cfg.cfg.phys.family hU.sepU) :
     UniformSubpowerLE (BundledUniformScalarConfig d)
       (fun δ cfg => ∑ t : Fin cfg.cfg.phys.n,
         (physicalRealization cfg.cfg.phys.family cfg.cfg.phys.shading cfg.cfg.phys.hpos).shadeVol t δ)
