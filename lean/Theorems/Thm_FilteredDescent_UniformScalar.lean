@@ -40,12 +40,17 @@ What IS achieved here:
 
 namespace FilteredDescent
 
-/-- Admissible geometric configuration (TODO_GUIDANCE P0-2).
+/-- Admissible geometric configuration (TODO_GUIDANCE P0-2, P0-3 new).
 
 Scale-indexed: `δ` is the index, `n = phys.n` may vary with `δ`
-(e.g. `n(δ) ≍ δ^{-(d-1)}` in Kakeya). Extends `PhysicalConfig` with
-the per-tube load function for the pair-energy estimate (abstracting
-`termLoad` from the re-rooted subtree).
+(e.g. `n(δ) ≍ δ^{-(d-1)}` in Kakeya).
+
+P0-3 FIX: The old version had an arbitrary `tubeLoad : Fin n → ℝ → ℝ`
+with no source compatibility, making `UniformGeomInput` uninhabited
+(scaling `tubeLoad` by λ gives `pairEnergy ~ λ²` but `geomRHS ~ λ`).
+Now the load is DERIVED from the physical source (`phys.shading`)
+via `physicalRealization`, so it belongs to the paper's class:
+actual shaded tube families and their source-restricted descendants.
 
 The dimension-specific input roles (d=2 planar [2], d=3 sticky [7,10],
 d=4 marked [9]) correspond to different inhabitants of this config type;
@@ -53,19 +58,21 @@ the uniform constant is chosen before the config, so it works for all.
 -/
 structure AdmissibleGeomConfig (d : ℕ) (δ : ℝ) where
   phys : PhysicalConfig d δ
-  /-- Per-tube load for the pair estimate (abstracts `termLoad`). -/
-  tubeLoad : Fin phys.n → ℝ → ℝ
-  tubeLoad_nonneg : ∀ t δ', 0 < δ' → δ' < 1 → 0 ≤ tubeLoad t δ'
+  -- NOTE (P0-3): NO arbitrary tubeLoad field. The pair energy is computed
+  -- from phys.shading via physicalRealization.shadeVol, ensuring the load
+  -- belongs to the paper's admissible class (source-derived, not arbitrary).
+  -- Subtree restriction (P0-4) constructs a restricted PhysicalConfig.
 
-/-- Pair energy: `∑_{t≠t'} tubeLoad t δ * tubeLoad t' δ`. -/
+/-- Pair energy from the source shading: `∑_{t≠t'} shadeVol t δ * shadeVol t' δ`. -/
 noncomputable def pairEnergy (d : ℕ) (δ : ℝ) (cfg : AdmissibleGeomConfig d δ) : ℝ :=
+  let physReal := physicalRealization cfg.phys.family cfg.phys.shading cfg.phys.hpos
   ∑ t : Fin cfg.phys.n, ∑ t' : Fin cfg.phys.n,
-    if t ≠ t' then cfg.tubeLoad t δ * cfg.tubeLoad t' δ else 0
+    if t ≠ t' then physReal.shadeVol t δ * physReal.shadeVol t' δ else 0
 
-/-- RHS: `unionVol δ * ∑_t tubeLoad t δ`. -/
+/-- RHS from the source shading: `unionVol δ * ∑_t shadeVol t δ`. -/
 noncomputable def geomRHS (d : ℕ) (δ : ℝ) (cfg : AdmissibleGeomConfig d δ) : ℝ :=
   let physReal := physicalRealization cfg.phys.family cfg.phys.shading cfg.phys.hpos
-  physReal.unionVol δ * ∑ t : Fin cfg.phys.n, cfg.tubeLoad t δ
+  physReal.unionVol δ * ∑ t : Fin cfg.phys.n, physReal.shadeVol t δ
 
 /-- Uniform geometric input (TODO_GUIDANCE P0-2).
 
@@ -170,77 +177,28 @@ structure UniformScalarConfig (d : ℕ) (α : Type) [DecidableEq α] [Fintype α
 /-- Build an `AdmissibleGeomConfig` from subtree data (for P0-2 threading).
 
 Given `cfg : UniformScalarConfig d α`, `x ∈ cfg.T`, and `δ`, constructs
-the admissible geometric configuration for the re-rooted subtree at `x`.
-The `tubeLoad` is the `termLoad` of the re-rooted subtree, so:
-- `pairEnergy` matches the local `geom_pair` LHS at `x`;
-- `geomRHS` matches the local `geom_pair` RHS at `x` (via `∑_t termLoad = totalLoad`).
+the admissible geometric configuration.
+
+NOTE (P0-4): Currently just reuses `cfg.phys`. The full version must
+construct the RESTRICTED source `S_x` for the subtree at `x` (retained
+node), with the rerooted terminal tube load equal to the shading load
+of `S_x`. That construction is deferred to P0-4.
 -/
 noncomputable def admGeomConfigOfSubtree {d : ℕ} {α : Type} [DecidableEq α] [Fintype α]
     {δ₀ : ℝ} (cfg : UniformScalarConfig d α δ₀) (x : List α) (hx : x ∈ cfg.T)
     (δ : ℝ) (hδ0 : 0 < δ) :
     AdmissibleGeomConfig d δ where
   -- Reuse n, family, shading from cfg.phys (δ-independent); hpos works for all δ'
+  -- P0-4 will replace this with the restricted source S_x.
   phys := ⟨cfg.phys.n, cfg.phys.family, cfg.phys.shading, cfg.phys.hpos⟩
-  tubeLoad := fun t δ' => termLoad (reroot cfg.T x)
-    (fun s => cfg.termTube (x ++ s)) (fun s δ'' => cfg.load (x ++ s) δ'') t δ'
-  tubeLoad_nonneg := by
-    intro t δ' hδ'0 hδ'1
-    unfold termLoad
-    apply Finset.sum_nonneg
-    intro γ hγ
-    have hγmem : γ ∈ treeLeaves (reroot cfg.T x) := (Finset.mem_filter.mp hγ).1
-    have hlift : x ++ γ ∈ treeLeaves cfg.T := reroot_leaf_lift cfg.T x hγmem
-    exact cfg.hload (x ++ γ) hlift δ' hδ'0 hδ'1
 
-/-- Derive a local `SubpowerLE` pair bound from the uniform geometric input.
-
-Given `hU.geom : UniformGeomInput d`, `cfg`, `x ∈ cfg.T`, and `ε > 0`,
-produces a `SubpowerLE` for the re-rooted subtree at `x` with the UNIFORM
-constant `C_geom` (not depending on `cfg` or `x`).
-
-This is the key threading step for P0-2: the per-subtree geometric input
-is derived from the global uniform hypothesis, not assumed per-config.
--/
-theorem uniformGeomPair_to_local {d : ℕ} {α : Type} [DecidableEq α] [Fintype α]
-    (hU : UniformDescentAssumptions d)
-    {δ₀ : ℝ} (cfg : UniformScalarConfig d α δ₀) (x : List α) (hx : x ∈ cfg.T) :
-    SubpowerLE
-      (fun δ => ∑ t : Fin cfg.phys.n, ∑ t' : Fin cfg.phys.n,
-        if t ≠ t' then termLoad (reroot cfg.T x) (fun s => cfg.termTube (x ++ s))
-          (fun s δ'' => cfg.load (x ++ s) δ'') t δ
-          * termLoad (reroot cfg.T x) (fun s => cfg.termTube (x ++ s))
-          (fun s δ'' => cfg.load (x ++ s) δ'') t' δ
-        else 0)
-      (fun δ => (physicalRealization cfg.phys.family cfg.phys.shading cfg.phys.hpos).unionVol δ *
-        totalLoad (reroot cfg.T x) (fun s δ'' => cfg.load (x ++ s) δ'') δ) := by
-  -- For each ε', obtain the UNIFORM C' from hU.geom (not depending on cfg/x)
-  intro ε' hε'
-  obtain ⟨C', hC', hbound'⟩ := hU.geom ε' hε'
-  refine ⟨C', hC', fun δ hδ0 hδ1 => ?_⟩
-  -- Build the AdmissibleGeomConfig for this subtree (at the varying δ)
-  -- and apply the uniform bound
-  have h := hbound' δ hδ0 hδ1 (admGeomConfigOfSubtree cfg x hx δ hδ0)
-  -- h : pairEnergy d δ (admGeomConfigOfSubtree ...) ≤ C' * δ^{-ε'} * geomRHS ...
-  have hLHS : pairEnergy d δ (admGeomConfigOfSubtree cfg x hx δ hδ0) =
-      ∑ t : Fin cfg.phys.n, ∑ t' : Fin cfg.phys.n,
-        if t ≠ t' then termLoad (reroot cfg.T x) (fun s => cfg.termTube (x ++ s))
-          (fun s δ'' => cfg.load (x ++ s) δ'') t δ
-          * termLoad (reroot cfg.T x) (fun s => cfg.termTube (x ++ s))
-          (fun s δ'' => cfg.load (x ++ s) δ'') t' δ
-        else 0 := by
-    unfold pairEnergy admGeomConfigOfSubtree
-    rfl
-  have hRHS : geomRHS d δ (admGeomConfigOfSubtree cfg x hx δ hδ0) =
-      (physicalRealization cfg.phys.family cfg.phys.shading cfg.phys.hpos).unionVol δ *
-        totalLoad (reroot cfg.T x) (fun s δ'' => cfg.load (x ++ s) δ'') δ := by
-    unfold geomRHS admGeomConfigOfSubtree
-    simp only
-    congr 1
-    -- ∑ t, termLoad t δ = totalLoad by totalLoad_eq_sum_termLoad
-    exact (totalLoad_eq_sum_termLoad (reroot cfg.T x)
-      (fun s => cfg.termTube (x ++ s)) (fun s δ'' => cfg.load (x ++ s) δ'') δ).symm
-  rw [hLHS, hRHS] at h
-  exact h
+-- NOTE (TODO_GUIDANCE P0-4): The `uniformGeomPair_to_local` lemma (deriving
+-- per-subtree `SubpowerLE` from `hU.geom`) was removed. It required the
+-- `AdmissibleGeomConfig` to carry the subtree's `termLoad`, but P0-3 fixed the
+-- uninhabited issue by deriving the load from the source. The correct P0-4
+-- construction builds a RESTRICTED physical source `S_x` for each subtree `x`,
+-- with `S_x.shadeVol = termLoad` of the re-rooted subtree. That construction
+-- is deferred.
 
 /-- The authoritative uniform scalar closure (TODO_GUIDANCE item 9).
 
