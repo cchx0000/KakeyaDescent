@@ -350,8 +350,89 @@ theorem faithful_gate_discharged {α : Type} [DecidableEq α] [Fintype α] {n : 
       simpa using h
     · -- Degenerate: [] is a leaf, so T = {[]}.
       -- In this case termLoad collapses to a single term and the bound
-      -- follows from leaf_bound. Detailed proof deferred.
-      sorry
+      -- follows from leaf_bound.
+      push_neg at hnr
+      obtain ⟨γ₀, hγ₀_mem, hγ₀_eq⟩ := hnr
+      have hmem : [] ∈ treeLeaves T := hγ₀_eq ▸ hγ₀_mem
+      -- T = {[]}: [] being a leaf forces no other nodes
+      have hTeq : T = {[]} := by
+        ext l
+        simp only [Finset.mem_singleton]
+        constructor
+        · intro hl
+          have hleaf := (Finset.mem_filter.mp hmem).2
+          exact hleaf l hl (by simp)
+        · intro hl
+          rw [hl]
+          exact hroot
+      have hleaves : treeLeaves T = {[]} := by
+        rw [hTeq, treeLeaves]
+        apply Finset.filter_true_of_mem
+        intro l hl l' hl' _
+        rw [Finset.mem_singleton.mp hl, Finset.mem_singleton.mp hl']
+      -- termLoad collapses: only t = termTube [] contributes
+      have hterm : ∀ (t : Fin n) (δ : ℝ),
+          termLoad T termTube load t δ
+            = if termTube [] = t then load [] δ else 0 := by
+        intro t δ
+        unfold termLoad
+        rw [hleaves]
+        by_cases ht : termTube [] = t
+        · rw [if_pos ht]
+          have hfilter : ({[]} : Finset (List α)).filter
+              (fun γ => termTube γ = t) = {[]} := by
+            ext γ
+            simp only [Finset.mem_filter, Finset.mem_singleton]
+            constructor
+            · rintro ⟨rfl, -⟩
+              rfl
+            · intro hγ
+              rw [hγ]
+              exact ⟨rfl, ht⟩
+          rw [hfilter, Finset.sum_singleton]
+        · rw [if_neg ht]
+          have hfilter : ({[]} : Finset (List α)).filter
+              (fun γ => termTube γ = t) = ∅ := by
+            rw [Finset.filter_eq_empty_iff]
+            intro γ hγ
+            rw [Finset.mem_singleton.mp hγ]
+            exact ht
+          rw [hfilter, Finset.sum_empty]
+      have htotal : ∀ δ : ℝ, totalLoad T load δ = load [] δ := by
+        intro δ
+        unfold totalLoad
+        rw [hleaves]
+        rw [Finset.sum_singleton]
+      -- The LHS sum collapses to (load [] δ)^2
+      have hsum : ∀ δ : ℝ,
+          ∑ t : Fin n, (termLoad T termTube load t δ) ^ 2
+            = (load [] δ) ^ 2 := by
+        intro δ
+        rw [Finset.sum_eq_single (termTube [])]
+        · rw [hterm _ _, if_pos rfl]
+        · intro t _ htne
+          rw [hterm _ _, if_neg (fun h => htne h.symm)]
+          simp
+        · intro habs
+          exact absurd (Finset.mem_univ (termTube [])) habs
+      -- Rewrite goal and apply of_le_const with K = 1
+      have hgoal_eq : (fun δ => ∑ t : Fin n, (termLoad T termTube load t δ) ^ 2)
+          = (fun δ => (load [] δ) ^ 2) := funext hsum
+      have hgoal_eq2 : (fun δ => Bpred δ * totalLoad T load δ)
+          = (fun δ => Bpred δ * load [] δ) :=
+        funext (fun δ => by rw [htotal])
+      rw [hgoal_eq, hgoal_eq2]
+      apply SubpowerLE.of_le_const zero_le_one
+      · intro δ hδ0 hδ1
+        have hb := leaf_bound [] hmem δ hδ0 hδ1
+        have hl := hload [] hmem δ hδ0 hδ1
+        rw [one_mul]
+        calc (load [] δ) ^ 2 = load [] δ * load [] δ := by ring
+          _ ≤ Bpred δ * load [] δ := mul_le_mul_of_nonneg_right hb hl
+      · intro δ hδ0 hδ1
+        have hb := hBpred δ hδ0 hδ1
+        have hl := hload [] hmem δ hδ0 hδ1
+        exact mul_nonneg hb hl
   have hgp : SubpowerLE
       (fun δ => ∑ t : Fin n, ∑ t' : Fin n,
         if t ≠ t' then termLoad T termTube load t δ * termLoad T termTube load t' δ
