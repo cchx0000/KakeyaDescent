@@ -239,6 +239,17 @@ NOTE (P0-4): Currently just reuses `cfg.phys`. The full version must
 construct the RESTRICTED source `S_x` for the subtree at `x` (retained
 node), with the rerooted terminal tube load equal to the shading load
 of `S_x`. That construction is deferred to P0-4.
+
+Paper reference: §10.1, eq (131)-(133). The paper defines for each vertex `a`
+  `W_a(x) := ∑_{γ∈Desc(a)} u_γ(x)`  (132)
+where `u_γ(x) = E_γ(ρ_γ 1_{Γ_k} f_{γ,I})(x)` is source-derived via conditional
+expectations (131). The children partition gives (133): `W_a = ∑_{b} W_b`.
+The restricted source `S_x` should have shading density proportional to `W_x`.
+
+This requires P1-9 (build history loads from pathMass): the `load` field must
+be proved source-derived (via `pathMass`/`u_γ`), not an arbitrary function.
+Only then can the restricted shading `Y_x` be constructed with
+`volume(Y_x t δ) = termLoad_x t δ`.
 -/
 noncomputable def admGeomConfigOfSubtree {d : ℕ} {α : Type} [DecidableEq α] [Fintype α]
     {δ₀ : ℝ} (cfg : UniformScalarConfig d α δ₀) (x : List α) (hx : x ∈ cfg.T)
