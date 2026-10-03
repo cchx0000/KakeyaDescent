@@ -25,8 +25,9 @@ tree/ledger/geometric inputs that are still named hypotheses in the
 underlying machinery. This gives the correct *quantifier order* (uniform
 `C`), but the following TODO_GUIDANCE items remain:
 
-- Item 6: `geom_pair` should come from dimension-specific external input
-  (d=2/3/4), not as a direct hypothesis.
+- Item 6 (partially done): `geom_pair` field REMOVED from config (P0-2);
+  now derived from `UniformGeomInput d` (dimension-specific external
+  input d=2/3/4 via AdmissibleGeomConfig).
 - Item 7: tree/load should be derived from packet/source law, not given.
 - Item 8: `htotalLoad` should be derived from mass conservation, not assumed.
 
@@ -150,15 +151,12 @@ structure UniformScalarConfig (d : ℕ) (α : Type) [DecidableEq α] [Fintype α
   hquantAt : ∀ (x : List α) (hx : x ∈ T),
     NodeHQuant L x hx termTube load
       (physicalRealization phys.family phys.shading phys.hpos).unionVol
-  geom_pair : ∀ x ∈ T, SubpowerLE
-    (fun δ' => ∑ t : Fin phys.n, ∑ t' : Fin phys.n,
-      if t ≠ t' then termLoad (reroot T x) (fun s => termTube (x ++ s))
-        (fun s δ'' => load (x ++ s) δ'') t δ'
-        * termLoad (reroot T x) (fun s => termTube (x ++ s))
-        (fun s δ'' => load (x ++ s) δ'') t' δ'
-      else 0)
-    (fun δ' => (physicalRealization phys.family phys.shading phys.hpos).unionVol δ' *
-      totalLoad (reroot T x) (fun s δ'' => load (x ++ s) δ'') δ')
+  -- NOTE (TODO_GUIDANCE P0-2): the per-configuration `geom_pair : ∀ x ∈ T, SubpowerLE ...`
+  -- field was REMOVED. The geometric pair bound is now obtained uniformly from
+  -- `UniformDescentAssumptions.geom : UniformGeomInput d`, whose constant is chosen
+  -- before the configuration. For each subtree x ∈ T, the local pair estimate is
+  -- derived by instantiating the uniform input at the AdmissibleGeomConfig built
+  -- from the subtree data (see scalar_closure_uniform proof).
 
 /-- The authoritative uniform scalar closure (TODO_GUIDANCE item 9).
 
@@ -176,9 +174,11 @@ filtered descent. The proof instantiates the ledger-based
 `SubpowerLE` constant from the instantiation is chosen *before* the
 configuration is examined.
 
-Note: the `geom_pair` and tree/ledger data are still bundled in the
-configuration (items 6/7/8 remain). What is NOT in the configuration:
-`Hpred` (proved by descent) and `terminal_hardening` (derived from ledger).
+Note: tree/ledger data are still bundled in the configuration
+(items 7/8 remain). What is NOT in the configuration:
+- `geom_pair` (REMOVED per P0-2; derived uniformly from `hU.geom`);
+- `Hpred` (proved by descent);
+- `terminal_hardening` (derived from ledger).
 
 Takes `UniformDescentAssumptions d` (TODO_GUIDANCE P0-1): the uniform
 geometric input, hardening budget, and complexity certificate whose
