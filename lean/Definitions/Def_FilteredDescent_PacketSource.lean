@@ -144,4 +144,45 @@ theorem packetChildrenOfSource_are_steps {α : Type} [Fintype α] [DecidableEq �
   have hsub := packetChildren_subset s (packetSelectOfSource src s) ht
   exact successors_are_steps s t hsub
 
+/-- Mass conservation (TODO_GUIDANCE items 7/8, key lemma).
+
+The total derived child mass from `s` equals the total surviving
+retained packet mass. Each retained surviving packet `U` contributes
+its mass to exactly one successor (`trans s U`) — a fiber-sum argument.
+
+This is the combinatorial heart of `htotalLoad` discharge (item 8):
+mass is neither created nor destroyed when passing from the packet law
+to the tree's child distribution; only the source-small deletion
+removes mass, and that removal is tracked by the ledger. -/
+theorem derivedChildMass_sum {α : Type} [Fintype α] [DecidableEq α]
+    {n r : ℕ} [Fintype (DescentState α n)] (src : PacketSource α n r)
+    (s : DescentState α n) :
+    ∑ t, derivedChildMass src s t =
+    ∑ U ∈ src.retained.filter (packetSurvives src.w src.delThresh),
+      packetLaw src.w U := by
+  -- Each derivedChildMass is a fiber sum over the double filter
+  have h1 : ∀ t : DescentState α n, derivedChildMass src s t =
+      ∑ U ∈ (src.retained.filter
+        (packetSurvives src.w src.delThresh)).filter
+        (fun U => src.trans s U = t), packetLaw src.w U := by
+    intro t
+    show ∑ U ∈ src.retained.filter (packetContributes src s t),
+      packetLaw src.w U = _
+    rw [show (src.retained.filter (packetContributes src s t))
+        = (src.retained.filter
+          (packetSurvives src.w src.delThresh)).filter
+          (fun U => src.trans s U = t) from by
+      ext U
+      simp only [Finset.mem_filter, packetContributes]
+      constructor
+      · rintro ⟨hmem, htrans, hsurv⟩
+        exact ⟨⟨hmem, hsurv⟩, htrans⟩
+      · rintro ⟨⟨hmem, hsurv⟩, htrans⟩
+        exact ⟨hmem, htrans, hsurv⟩]
+  simp_rw [h1]
+  -- Fiberwise sum: ∑ t, ∑_{U : trans s U = t} = ∑ U
+  exact Finset.sum_fiberwise_of_maps_to
+    (fun U _ => Finset.mem_univ (src.trans s U))
+    (fun U => packetLaw src.w U)
+
 end FilteredDescent
