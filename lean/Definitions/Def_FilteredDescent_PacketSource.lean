@@ -335,4 +335,22 @@ theorem pathMass_root {α : Type} [Fintype α] [DecidableEq α]
     unfold pathFollows
     exact List.isChain_nil
 
+/-- Paper (143)/(145), P1-9: terminal tube from the physical incidence label.
+
+For a history path `p`, the terminal tube is derived from the last
+`DescentState`'s support: if the support is a singleton `{t}`, the terminal
+tube is `t`. This replaces the arbitrary `termTube` field with a
+source-derived definition.
+
+The paper refines each terminal history leaf by "the ordinary tube to which
+its target incidence belongs" (§10.2). Here the target incidence label is
+the terminal state's support.
+-/
+noncomputable def termTubeOfPath {α : Type} {n : ℕ}
+    (p : List (DescentState α n)) : Option (Fin n) :=
+  match he : p.getLast? with
+  | none => none
+  | some s => dite (s.support.card = 1) (fun h =>
+      some ((Finset.card_eq_one.mp h).choose)) (fun _ => none)
+
 end FilteredDescent
