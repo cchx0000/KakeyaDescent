@@ -380,14 +380,44 @@ source-derived `load` (via `pathMass`) satisfies
 -/
 
 -- Restricted shading for subtree x (P0-4b).
--- Construction via exists_subset_volume; details deferred.
+-- Via exists_subset_volume: for each (t, δ'), pick Y_x(t,δ') ⊆ Y(t,δ')
+-- with volume = subtreeTermLoad. Needs 0 ≤ termLoad (from termLoad_nonneg)
+-- and termLoad ≤ shadeVol (hbound).
 noncomputable def restrictedShading {d : ℕ} {α : Type} [DecidableEq α] [Fintype α]
     {δ₀ : ℝ} (cfg : UniformScalarConfig d α δ₀) (x : List α) (hx : x ∈ cfg.T)
     (hbound : ∀ t δ', 0 < δ' → δ' < 1 →
       subtreeTermLoad cfg x t δ' ≤
         (MeasureTheory.volume (cfg.phys.shading.Y t δ')).toReal) :
-    Shading cfg.phys.family :=
-  sorry
+    Shading cfg.phys.family := by
+  -- For each (t, δ'), get the subset via exists_subset_volume
+  -- Use choice to obtain the function
+  have hchoice : ∀ t δ', 0 < δ' → δ' < 1 →
+      ∃ S' : Set (EuclideanSpace ℝ (Fin d)),
+        MeasurableSet S' ∧ S' ⊆ cfg.phys.shading.Y t δ' ∧
+        (MeasureTheory.volume S').toReal = subtreeTermLoad cfg x t δ' := by
+    intro t δ' hδ0 hδ1
+    apply exists_subset_volume
+    · exact cfg.phys.shading.measurable t δ' hδ0 hδ1
+    · rfl
+    · -- 0 ≤ subtreeTermLoad: via termLoad_nonneg
+      -- subtreeTermLoad = termLoad (reroot ...) ... which is ≥ 0
+      sorry
+    · exact hbound t δ' hδ0 hδ1
+  -- Use choice to get Y_x as a function
+  choose Yx hYx_meas hYx_sub hYx_vol using hchoice
+  -- Construct the Shading
+  refine ⟨fun t δ' => if h : 0 < δ' ∧ δ' < 1 then Yx t δ' h.1 h.2 else ∅, ?_, ?_⟩
+  · -- measurable
+    intro t δ hδ0 hδ1
+    have hcond : 0 < δ ∧ δ < 1 := ⟨hδ0, hδ1⟩
+    rw [dif_pos hcond]
+    exact hYx_meas t δ hδ0 hδ1
+  · -- subset_tube: Y_x ⊆ Y ⊆ tube
+    intro t δ hδ0 hδ1
+    have hcond : 0 < δ ∧ δ < 1 := ⟨hδ0, hδ1⟩
+    rw [dif_pos hcond]
+    exact Set.Subset.trans (hYx_sub t δ hδ0 hδ1)
+      (cfg.phys.shading.subset_tube t δ hδ0 hδ1)
 
 -- uninhabited issue by deriving the load from the source. The correct P0-4
 -- construction builds a RESTRICTED physical source `S_x` for each subtree `x`,
