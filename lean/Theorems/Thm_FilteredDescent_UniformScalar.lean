@@ -84,6 +84,7 @@ quantifiers; the proof is external to this formalization.
 def UniformGeomInput (d : ℕ) : Prop :=
   UniformSubpowerLE (AdmissibleGeomConfig d) (pairEnergy d) (geomRHS d)
 
+
 /-- Uniform hardening budget (TODO_GUIDANCE P0-1).
 
 Global hardening constants chosen before the varying configuration.
@@ -157,6 +158,30 @@ structure UniformScalarConfig (d : ℕ) (α : Type) [DecidableEq α] [Fintype α
   -- before the configuration. For each subtree x ∈ T, the local pair estimate is
   -- derived by instantiating the uniform input at the AdmissibleGeomConfig built
   -- from the subtree data (see scalar_closure_uniform proof).
+
+/-- Build an `AdmissibleGeomConfig` from subtree data (for P0-2 threading).
+
+Given `cfg : UniformScalarConfig d α`, `x ∈ cfg.T`, and `δ`, constructs
+the admissible geometric configuration for the re-rooted subtree at `x`.
+The `tubeLoad` is the `termLoad` of the re-rooted subtree, so:
+- `pairEnergy` matches the local `geom_pair` LHS at `x`;
+- `geomRHS` matches the local `geom_pair` RHS at `x` (via `∑_t termLoad = totalLoad`).
+-/
+noncomputable def admGeomConfigOfSubtree {d : ℕ} {α : Type} [DecidableEq α] [Fintype α]
+    {δ : ℝ} (cfg : UniformScalarConfig d α δ) (x : List α) (hx : x ∈ cfg.T)
+    (hδ0 : 0 < δ) :
+    AdmissibleGeomConfig d δ where
+  phys := cfg.phys
+  tubeLoad := fun t δ' => termLoad (reroot cfg.T x)
+    (fun s => cfg.termTube (x ++ s)) (fun s δ'' => cfg.load (x ++ s) δ'') t δ'
+  tubeLoad_nonneg := by
+    intro t δ' hδ'0 hδ'1
+    unfold termLoad
+    apply Finset.sum_nonneg
+    intro γ hγ
+    have hγmem : γ ∈ treeLeaves (reroot cfg.T x) := (Finset.mem_filter.mp hγ).1
+    have hlift : x ++ γ ∈ treeLeaves cfg.T := reroot_leaf_lift cfg.T x hγmem
+    exact cfg.hload (x ++ γ) hlift δ' hδ'0 hδ'1
 
 /-- The authoritative uniform scalar closure (TODO_GUIDANCE item 9).
 
