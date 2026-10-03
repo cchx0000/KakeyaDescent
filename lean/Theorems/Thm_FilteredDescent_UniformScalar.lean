@@ -190,6 +190,24 @@ structure UniformScalarConfig (d : ℕ) (α : Type) [DecidableEq α] [Fintype α
   -- derived by instantiating the uniform input at the AdmissibleGeomConfig built
   -- from the subtree data (see scalar_closure_uniform proof).
 
+/-- Bundled uniform scalar configuration (TODO_GUIDANCE P0-7).
+
+Packages the label type `α` (with its instances) INSIDE the configuration,
+so the uniform constant `C` in `UniformSubpowerLE` is chosen BEFORE `α`.
+This removes the hidden dependence of `C` on the history alphabet `α`.
+
+Previously, `scalar_closure_uniform {α : Type} ...` fixed `α` before the
+`∃ C`, allowing `C` to depend on `α`. Now `α` is part of `cfg`, so `C`
+must work for all `α` simultaneously.
+-/
+structure BundledUniformScalarConfig (d : ℕ) (δ : ℝ) where
+  α : Type
+  decα : DecidableEq α
+  finα : Fintype α
+  cfg : @UniformScalarConfig d α decα finα δ
+
+attribute [instance] BundledUniformScalarConfig.decα BundledUniformScalarConfig.finα
+
 /-- Build an `AdmissibleGeomConfig` from subtree data (for P0-2 threading).
 
 Given `cfg : UniformScalarConfig d α`, `x ∈ cfg.T`, and `δ`, constructs
@@ -242,17 +260,18 @@ Takes `UniformDescentAssumptions d` (TODO_GUIDANCE P0-1): the uniform
 geometric input, hardening budget, and complexity certificate whose
 constants are chosen *before* the configuration is quantified.
 -/
-theorem scalar_closure_uniform {d : ℕ} {α : Type} [DecidableEq α] [Fintype α]
+theorem scalar_closure_uniform {d : ℕ}
     (hU : UniformDescentAssumptions d)
     -- P0-6: local ledgers must respect the uniform hardening budget.
     -- Without this, a config with huge `card K` or tiny `c₀` could break uniformity.
-    (hcompat : ∀ δ : ℝ, ∀ cfg : UniformScalarConfig d α δ,
-      LedgerBudgetCompatible cfg.L hU.hard) :
-    UniformSubpowerLE (UniformScalarConfig d α)
-      (fun δ cfg => ∑ t : Fin cfg.phys.n,
-        (physicalRealization cfg.phys.family cfg.phys.shading cfg.phys.hpos).shadeVol t δ)
+    -- P0-7: α is now inside the bundled config, so C cannot depend on it.
+    (hcompat : ∀ δ : ℝ, ∀ cfg : BundledUniformScalarConfig d δ,
+      LedgerBudgetCompatible cfg.cfg.L hU.hard) :
+    UniformSubpowerLE (BundledUniformScalarConfig d)
+      (fun δ cfg => ∑ t : Fin cfg.cfg.phys.n,
+        (physicalRealization cfg.cfg.phys.family cfg.cfg.phys.shading cfg.cfg.phys.hpos).shadeVol t δ)
       (fun δ cfg =>
-        (physicalRealization cfg.phys.family cfg.phys.shading cfg.phys.hpos).unionVol δ) := by
+        (physicalRealization cfg.cfg.phys.family cfg.cfg.phys.shading cfg.cfg.phys.hpos).unionVol δ) := by
   intro ε hε
   -- By the uniform assumptions, obtain uniform constants BEFORE the config.
   obtain ⟨C_geom, hC_geom, hgeom⟩ := hU.geom ε hε
