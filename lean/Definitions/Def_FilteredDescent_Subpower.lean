@@ -230,4 +230,38 @@ theorem UniformSubpowerLE.of_le_const {Config : ℝ → Type u}
           _ ≤ δ ^ (-ε) * Y δ cfg := mul_le_mul_of_nonneg_right hge hgδ
     _ = K * δ ^ (-ε) * Y δ cfg := by ring
 
+/-- Regression test (TODO_GUIDANCE P0-1 acceptance): the uniform API blocks
+the trivial `C = n` proof.
+
+Take `Config δ = ℕ` (unbounded, independent of `δ`), `X δ n = (n : ℝ)`,
+`Y δ n = 1`. A family-local bound would allow `C` to depend on the specific
+`n` (e.g. `C = n`), but the uniform `C` must work for ALL `n : ℕ`
+simultaneously, which is impossible since `ℕ` is unbounded.
+
+This captures the Kakeya `n(δ) ≍ δ^{-(d-1)}` obstruction: when the tube count
+grows with `δ`, no `δ`-independent `C` can absorb it.
+-/
+theorem uniformSubpowerLE_no_trivial_const :
+    ¬ UniformSubpowerLE (fun _ : ℝ => ℕ)
+      (fun _ n => (n : ℝ))
+      (fun _ _ => 1) := by
+  intro h
+  obtain ⟨C, hC0, hC⟩ := h 1 (by norm_num)
+  -- For δ = 1/2: (n : ℝ) ≤ C * (1/2)^{-1} = 2C for all n : ℕ. Impossible.
+  have hbound : ∀ n : ℕ, (n : ℝ) ≤ C * (1/2 : ℝ) ^ (-(1:ℝ)) := by
+    intro n
+    have := hC (1/2) (by norm_num) (by norm_num) n
+    simpa using this
+  -- Choose n > 2C + 1
+  obtain ⟨n₀, hn₀⟩ : ∃ n : ℕ, (2 * C + 1) < (n : ℝ) := by
+    obtain ⟨k, hk⟩ := exists_nat_gt (2 * C + 1)
+    exact ⟨k, hk⟩
+  have hle := hbound n₀
+  have hpow : ((1/2 : ℝ) ^ (-(1:ℝ))) = 2 := by
+    rw [Real.rpow_neg (by norm_num)]
+    rw [Real.rpow_one]
+    norm_num
+  rw [hpow] at hle
+  linarith
+
 end FilteredDescent
