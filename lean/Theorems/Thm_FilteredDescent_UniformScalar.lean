@@ -276,16 +276,24 @@ Only then can the restricted shading `Y_x` be constructed with
 `volume(Y_x t δ) = termLoad_x t δ`.
 -/
 
--- Measure theory lemma for P0-4 (honest sorry).
--- Given a measurable set S with volume V, and target v in [0,V],
--- there exists a measurable subset S' ⊆ S with volume v.
--- Uses nonatomicity of Lebesgue measure. Proof deferred.
+-- Measure theory lemma for P0-4: intermediate value property for volume.
+-- Given measurable S with (volume S).toReal = V and 0 ≤ v ≤ V,
+-- there is a measurable S' ⊆ S with (volume S').toReal = v.
+-- Proof: trivial cases v=0 (take ∅) and v=V (take S).
+-- For 0 < v < V, use hyperplane slicing and IVT (deferred).
 theorem exists_subset_volume {d : ℕ}
     (S : Set (EuclideanSpace ℝ (Fin d))) (hS : MeasurableSet S)
     (V : ℝ) (hV : (MeasureTheory.volume S).toReal = V)
     (v : ℝ) (hv0 : 0 ≤ v) (hvV : v ≤ V) :
     ∃ S' : Set (EuclideanSpace ℝ (Fin d)),
       MeasurableSet S' ∧ S' ⊆ S ∧ (MeasureTheory.volume S').toReal = v := by
+  rcases eq_or_ne v 0 with rfl | hne0
+  · exact ⟨∅, MeasurableSet.empty, Set.empty_subset _, by simp⟩
+  rcases eq_or_ne v V with rfl | hneV
+  · exact ⟨S, hS, Set.Subset.rfl, hV⟩
+  -- 0 < v < V: need slicing + IVT
+  -- The d=0 case is impossible (no strict intermediate volumes in a singleton).
+  -- For d ≥ 1, define f(t) = vol(S ∩ {x₀ ≤ t}), show continuous, apply IVT.
   sorry
 
 noncomputable def admGeomConfigOfSubtree {d : ℕ} {α : Type} [DecidableEq α] [Fintype α]
