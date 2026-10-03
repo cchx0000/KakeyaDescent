@@ -99,18 +99,26 @@ structure UniformHardeningBudget (d : ℕ) where
   c0_inv_bound : ℝ
   c0_nonneg : 0 ≤ c0_inv_bound
 
-/-- Uniform descent-complexity certificate (TODO_GUIDANCE P0-3).
+/-- Uniform descent-complexity certificate (TODO_GUIDANCE P0-2 new).
 
-Controls, uniformly over admissible configurations:
-- refined history-tree height;
-- branching/alphabet complexity;
-- finite support / confluence ceilings.
+Paper-faithful: complexity quantities (history height H_{I,k},
+support/confluence/Cartan bookkeeping, carrier counts, finite maxima)
+are controlled by uniform SUBPOWER estimates (δ^{-o(1)}), NOT by fixed
+natural-number bounds.
+
+The old fixed `height_bound : ℕ` / `branching_bound : ℕ` was too strong:
+it forbade the number of histories/leaves from growing with δ^{-1},
+while the paper allows such growth provided structural losses remain
+δ^{-o(1)}.
+
+Full formalization of the paper's exact complexity quantities is deferred;
+this placeholder records the correct specification shape.
 -/
 structure UniformDescentComplexity (d : ℕ) where
-  /-- Uniform bound on tree height. -/
-  height_bound : ℕ
-  /-- Uniform bound on branching factor. -/
-  branching_bound : ℕ
+  /-- Placeholder: the paper's subpower complexity control.
+  To be replaced by the exact quantities from §§6-9 (history height,
+  support/confluence/Cartan, etc.) with uniform subpower bounds. -/
+  placeholder : True := trivial
 
 /-- Combined uniform descent assumptions (TODO_GUIDANCE P0-1).
 
@@ -270,27 +278,19 @@ theorem scalar_closure_uniform {d : ℕ} {α : Type} [DecidableEq α] [Fintype �
   intro ε hε
   -- By the uniform assumptions, obtain uniform constants BEFORE the config.
   obtain ⟨C_geom, hC_geom, hgeom⟩ := hU.geom ε hε
-  -- Combine: C = C_geom * (hcard_bound + 1) * (branching_bound + 1)^{height_bound}.
-  -- The complexity certificate (hU.comp) ensures tree height/branching are
-  -- uniformly bounded, so the descent ledger constant does not depend on the
-  -- specific configuration's tree T.
-  -- Note: (branching_bound + 1)^{height_bound} bounds the tree size; the
-  -- paper's ledger uses height more carefully, but this suffices for the
-  -- uniform constant existence (P0-3).
-  set B := (hU.comp.branching_bound : ℝ) + 1 with hB
-  set H := hU.comp.height_bound with hH
-  refine ⟨C_geom * (hU.hard.hcard_bound + 1) * B ^ H, ?_, fun δ hδ0 hδ1 cfg => ?_⟩
-  · apply mul_nonneg
-    · apply mul_nonneg hC_geom
-      linarith [hU.hard.hcard_nonneg]
-    · apply pow_nonneg (by linarith : (0:ℝ) ≤ B)
+  -- Combine uniform constants. The complexity certificate (hU.comp) will
+  -- eventually provide subpower control on tree complexity (P0-2 new);
+  -- for now, the constant uses the geometric and hardening bounds.
+  -- The full threading through the descent machinery is deferred.
+  refine ⟨C_geom * (hU.hard.hcard_bound + 1), ?_, fun δ hδ0 hδ1 cfg => ?_⟩
+  · apply mul_nonneg hC_geom
+    linarith [hU.hard.hcard_nonneg]
   · -- For each config, apply the local descent with UNIFORM constants.
-    -- hU.geom : uniform pair bound; hU.hard : uniform ledger bounds;
-    -- hU.comp : uniform tree complexity bounds (height ≤ H, branching ≤ B).
+    -- hU.geom : uniform pair bound (via uniformGeomPair_to_local);
+    -- hU.hard : uniform ledger bounds;
+    -- hU.comp : uniform subpower complexity (P0-2 new, to be formalized).
     -- The full threading through scalar_closure_discharged_physical
-    -- is deferred: it requires refactoring the descent to consume
-    -- uniform inputs throughout and to verify cfg.T respects hU.comp
-    -- (TODO_GUIDANCE P0-1/P0-3 acceptance).
+    -- is deferred (TODO_GUIDANCE P0-5).
     sorry
 
 end FilteredDescent
