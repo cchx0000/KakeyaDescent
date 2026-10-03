@@ -39,23 +39,49 @@ What IS achieved here:
 
 namespace FilteredDescent
 
+/-- Admissible geometric configuration (TODO_GUIDANCE P0-2).
+
+Scale-indexed: `δ` is the index, `n = phys.n` may vary with `δ`
+(e.g. `n(δ) ≍ δ^{-(d-1)}` in Kakeya). Extends `PhysicalConfig` with
+the per-tube load function for the pair-energy estimate (abstracting
+`termLoad` from the re-rooted subtree).
+
+The dimension-specific input roles (d=2 planar [2], d=3 sticky [7,10],
+d=4 marked [9]) correspond to different inhabitants of this config type;
+the uniform constant is chosen before the config, so it works for all.
+-/
+structure AdmissibleGeomConfig (d : ℕ) (δ : ℝ) where
+  phys : PhysicalConfig d δ
+  /-- Per-tube load for the pair estimate (abstracts `termLoad`). -/
+  tubeLoad : Fin phys.n → ℝ → ℝ
+  tubeLoad_nonneg : ∀ t δ', 0 < δ' → δ' < 1 → 0 ≤ tubeLoad t δ'
+
+/-- Pair energy: `∑_{t≠t'} tubeLoad t δ * tubeLoad t' δ`. -/
+noncomputable def pairEnergy (d : ℕ) (δ : ℝ) (cfg : AdmissibleGeomConfig d δ) : ℝ :=
+  ∑ t : Fin cfg.phys.n, ∑ t' : Fin cfg.phys.n,
+    if t ≠ t' then cfg.tubeLoad t δ * cfg.tubeLoad t' δ else 0
+
+/-- RHS: `unionVol δ * ∑_t tubeLoad t δ`. -/
+noncomputable def geomRHS (d : ℕ) (δ : ℝ) (cfg : AdmissibleGeomConfig d δ) : ℝ :=
+  let physReal := physicalRealization cfg.phys.family cfg.phys.shading cfg.phys.hpos
+  physReal.unionVol δ * ∑ t : Fin cfg.phys.n, cfg.tubeLoad t δ
+
 /-- Uniform geometric input (TODO_GUIDANCE P0-2).
 
 A uniform pair-energy bound over scale-indexed admissible geometric
-configurations. The constant `C` is chosen *before* the configuration,
-so it cannot depend on the tube count, the concrete family, marks,
-or the subtree.
+configurations:
+
+  `pairEnergy δ cfg ≤ C * δ^{-ε} * geomRHS δ cfg`
+
+The constant `C` is chosen *before* `δ` and `cfg`, so it cannot depend
+on the tube count `n(δ)`, the concrete family, marks, or the subtree.
 
 This is a named external hypothesis (from [2] for d=2, [7,10] for d=3,
 [9] for d=4). The formal statement here has the correct uniform
 quantifiers; the proof is external to this formalization.
 -/
 def UniformGeomInput (d : ℕ) : Prop :=
-  -- The essential quantifier order: ∀ ε > 0, ∃ C ≥ 0, ∀ δ ∈ (0,1),
-  --   ∀ admissible geometric config, pairEnergy ≤ C * δ^{-ε} * rhs.
-  -- Full AdmissibleGeomConfig formalization deferred to P0-2 completion;
-  -- for now, the uniform constant existence is the key specification.
-  ∀ ε : ℝ, 0 < ε → ∃ C : ℝ, 0 ≤ C ∧ ∀ δ : ℝ, 0 < δ → δ < 1 → True
+  UniformSubpowerLE (AdmissibleGeomConfig d) (pairEnergy d) (geomRHS d)
 
 /-- Uniform hardening budget (TODO_GUIDANCE P0-1).
 
