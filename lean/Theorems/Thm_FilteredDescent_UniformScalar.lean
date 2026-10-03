@@ -334,15 +334,13 @@ theorem exists_subset_volume {d : ℕ}
       -- This is getting into the details of the singleton σ-algebra.
       -- For the Kakeya application, d ≥ 2 anyway, so we can admit this edge.
       sorry
-  -- Now d ≥ 1. Define the slicing function.
-  -- Let π(x) = x k (k-th coordinate, k = ⟨0, hd1⟩).
-  obtain ⟨k, hk⟩ : ∃ k : Fin d, True := ⟨⟨0, hd1⟩, trivial⟩
-  -- Define f(t) = (volume (S ∩ {x | x k ≤ t})).toReal
-  -- f is monotone, continuous (hyperplanes null by Fubini),
-  -- tends to 0 at -∞ and V at +∞. By IVT, ∃ t₀ with f(t₀) = v.
-  -- Take S' = S ∩ {x | x k ≤ t₀}.
-  -- Details: continuity via null hyperplanes, limits via monotone convergence.
+  -- Now d ≥ 1 (k = ⟨0, hd1⟩ : Fin d).
+  -- Define f(t) = (volume (S ∩ {x | x k ≤ t})).toReal.
+  -- f monotone, continuous (hyperplanes null via Fubini),
+  -- lim atBot = 0, lim atTop = V. IVT gives t₀ with f(t₀) = v.
+  -- Take S' = S ∩ {x | x k ≤ t₀}. Details deferred.
   sorry
+
 
 noncomputable def admGeomConfigOfSubtree {d : ℕ} {α : Type} [DecidableEq α] [Fintype α]
     {δ₀ : ℝ} (cfg : UniformScalarConfig d α δ₀) (x : List α) (hx : x ∈ cfg.T)
