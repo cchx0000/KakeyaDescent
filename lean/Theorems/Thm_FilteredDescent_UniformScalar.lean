@@ -415,8 +415,28 @@ theorem scalar_closure_uniform {d : ℕ}
     let cfg' : AdmissibleGeomConfig d δ := ⟨cfg.cfg.phys⟩
     have hpair := hgeom δ hδ0 hδ1 cfg'
     -- hpair : pairEnergy d δ cfg' ≤ C_geom * δ ^ (-ε) * geomRHS d δ cfg'
-    -- Unfold to get the explicit pair sum bound.
-    -- The full N² ≤ Bpred·N via descent is deferred.
+    --
+    -- P0-5b: Apply scalar_closure_discharged_physical with the uniform data.
+    -- The geom_pair hypothesis (per-subtree pair bound) is derived from
+    -- hU.geom via the P0-4 restricted source construction.
+    -- Currently marked sorry: needs the full P0-4 wiring.
+    have hgeom_pair : ∀ x ∈ cfg.cfg.T, SubpowerLE
+        (fun δ => ∑ t : Fin cfg.cfg.phys.n, ∑ t' : Fin cfg.cfg.phys.n,
+          if t ≠ t' then termLoad (reroot cfg.cfg.T x) (fun s => cfg.cfg.termTube (x ++ s))
+            (fun s δ => cfg.cfg.load (x ++ s) δ) t δ
+            * termLoad (reroot cfg.cfg.T x) (fun s => cfg.cfg.termTube (x ++ s))
+            (fun s δ => cfg.cfg.load (x ++ s) δ) t' δ
+          else 0)
+        (fun δ => (physicalRealization cfg.cfg.phys.family cfg.cfg.phys.shading cfg.cfg.phys.hpos).unionVol δ *
+          totalLoad (reroot cfg.cfg.T x) (fun s δ => cfg.cfg.load (x ++ s) δ) δ) := by
+      -- For each x, build restricted S_x via P0-4, apply hU.geom,
+      -- and use unionVol_{S_x} ≤ unionVol_orig.
+      -- Deferred: needs restrictedShading to be more than a sorry.
+      sorry
+    -- Apply the physical scalar closure with uniform-derived geom_pair.
+    -- The constant from scalar_closure_discharged_physical depends on the
+    -- config; we need to show it's bounded uniformly via hU.hard.
+    -- Deferred: uniform constant tracking.
     sorry
 
 end FilteredDescent
