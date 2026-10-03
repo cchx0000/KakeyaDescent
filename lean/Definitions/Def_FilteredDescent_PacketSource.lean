@@ -185,16 +185,118 @@ theorem derivedChildMass_sum {α : Type} [Fintype α] [DecidableEq α]
     (fun U _ => Finset.mem_univ (src.trans s U))
     (fun U => packetLaw src.w U)
 
+/-- A packet `U` follows a history path `p` iff its transition chain matches.
+
+For `p = [s₀, s₁, ..., sₖ]`, this means `trans sᵢ U = sᵢ₊₁` for all `i < k`.
+A single-node path `[s]` is vacuously followed (no transitions to check).
+-/
+def pathFollows {α : Type} [Fintype α] [DecidableEq α] {n r : ℕ}
+    (src : PacketSource α n r) (p : List (DescentState α n))
+    (U : Fin r → Fin n) : Prop :=
+  List.IsChain (fun s t => src.trans s U = t) p
+
+/-- Decidability of `pathFollows` (needed for `Finset.filter` in `pathMass`). -/
+noncomputable instance decPathFollows {α : Type} [Fintype α] [DecidableEq α]
+    {n r : ℕ} (src : PacketSource α n r) (p : List (DescentState α n)) :
+    DecidablePred (pathFollows src p) := fun U => by
+  unfold pathFollows
+  have hdec : DecidableRel (fun s t : DescentState α n => src.trans s U = t) :=
+    fun s t => decEq (src.trans s U) t
+  infer_instance
+
+/-- `pathFollows` for an extended path implies the last transition matches.
+
+For nonempty `p`, if `U` follows `p ++ [t]`, then `trans (last p) U = t`.
+This is the key for the partition (133): the next state is determined. -/
+theorem pathFollows_append_imp {α : Type} [Fintype α] [DecidableEq α]
+    {n r : ℕ} (src : PacketSource α n r)
+    (p : List (DescentState α n)) (t : DescentState α n)
+    (U : Fin r → Fin n) (hp : p ≠ [])
+    (h : pathFollows src (p ++ [t]) U) :
+    src.trans (p.getLast hp) U = t := by
+  unfold pathFollows at h
+  rw [List.isChain_append] at h
+  obtain ⟨_, _, hlast⟩ := h
+  -- hlast : ∀ x ∈ p.getLast?, ∀ y ∈ [t].head?, trans x U = y
+  -- p.getLast? = some (p.getLast hp), [t].head? = some t
+  have h1 : p.getLast? = some (p.getLast hp) := List.getLast?_eq_getLast hp
+  have h2 : ([t] : List (DescentState α n)).head? = some t := rfl
+  rw [h1, h2] at hlast
+  exact hlast _ rfl _ rfl
+
+/-- Reverse: following `p` and transitioning to `t` gives following `p ++ [t]`. -/
+noncomputable def pathMass {α : Type} [Fintype α] [DecidableEq α]
+    {n r : ℕ} (src : PacketSource α n r) (p : List (DescentState α n)) : ℝ :=
+  ∑ U ∈ src.retained.filter (fun U =>
+    packetSurvives src.w src.delThresh U ∧ pathFollows src p U),
+    packetLaw src.w U
+theorem pathFollows_append_rev {α : Type} [Fintype α] [DecidableEq α]
+    {n r : ℕ} (src : PacketSource α n r)
+    (p : List (DescentState α n)) (t : DescentState α n)
+    (U : Fin r → Fin n) (hp : p ≠ [])
+    (h1 : pathFollows src p U) (h2 : src.trans (p.getLast hp) U = t) :
+    pathFollows src (p ++ [t]) U := by
+  unfold pathFollows
+  rw [List.isChain_append]
+  refine ⟨h1, ?_, ?_⟩
+  · -- IsChain [t] is trivial
+    simp [List.IsChain]
+  · -- ∀ x ∈ p.getLast?, ∀ y ∈ [t].head?, trans x U = y
+    intro x hx y hy
+    have hx' : x = p.getLast hp := by
+      have h1 : p.getLast? = some (p.getLast hp) := List.getLast?_eq_getLast hp
+      rw [h1] at hx
+      simpa using hx.symm
+    have hy' : y = t := by
+      simp at hy
+      exact hy.symm
+    rw [hx', hy']
+    exact h2
+
+/-- Paper (133): the packets following `p` are partitioned by next state.
+
+`∑_t pathMass (p ++ [t]) = pathMass p` for nonempty `p`. The `trans (last p) U`
+determines which `t` each packet contributes to. -/
+theorem pathMass_partition {α : Type} [Fintype α] [DecidableEq α]
+    {n r : ℕ} [Fintype (DescentState α n)]
+    (src : PacketSource α n r) (p : List (DescentState α n)) (hp : p ≠ []) :
+    ∑ t : DescentState α n, pathMass src (p ++ [t]) = pathMass src p := by
+  unfold pathMass
+  -- Rewrite each pathMass (p ++ [t]) as a fiber over trans (last p)
+  have hfib : ∀ t : DescentState α n,
+      src.retained.filter (fun U =>
+        packetSurvives src.w src.delThresh U ∧ pathFollows src (p ++ [t]) U)
+      = (src.retained.filter (fun U =>
+          packetSurvives src.w src.delThresh U ∧ pathFollows src p U)).filter
+        (fun U => src.trans (p.getLast hp) U = t) := by
+    intro t
+    ext U
+    simp only [Finset.mem_filter]
+    constructor
+    · rintro ⟨hmem, hsurv, hfol⟩
+      refine ⟨⟨hmem, hsurv, ?_⟩, ?_⟩
+      · -- pathFollows p U from pathFollows (p ++ [t]) U
+        unfold pathFollows at hfol ⊢
+        rw [List.isChain_append] at hfol
+        exact hfol.1
+      · exact pathFollows_append_imp src p t U hp hfol
+    · rintro ⟨⟨hmem, hsurv, hfol⟩, htrans⟩
+      refine ⟨hmem, hsurv, ?_⟩
+      exact pathFollows_append_rev src p t U hp hfol htrans
+  simp_rw [hfib]
+  -- Now: ∑ t, ∑ U ∈ (F_p).filter (trans · = t), packetLaw = ∑ U ∈ F_p, packetLaw
+  -- By Finset.sum_fiberwise_of_maps_to
+  exact Finset.sum_fiberwise_of_maps_to
+    (fun U _ => Finset.mem_univ (src.trans (p.getLast hp) U))
+    (fun U => packetLaw src.w U)
+
 /-- Representative-leaf mass conservation (TODO_GUIDANCE item 8, core).
 
-Given a tube assignment `termTube` on tree leaves and a choice of
-representative leaf `rep t` for each tube `t`, the load that concentrates
-each tube's shading mass on its representative satisfies mass conservation.
-
-This discharges `htotalLoad` as a theorem parameter: instead of assuming
-the bridge identity `totalLoad T load δ = ∑ t, shadeVol t δ`, it is PROVED
-from the leaf/tube representative data. The full `FaithfulModel.ofPacketSource`
-(next unit) supplies `termTube` and `rep` from the packet source. -/
+[DEPRECATED: This was my own invention, not the paper's construction.
+The paper's (132)-(133) uses `pathMass` above: the actual packet flow,
+not arbitrary representatives. Kept for now to avoid breaking dependents;
+will be removed once `FaithfulModel.ofPacketSource` is migrated to `pathMass`.]
+-/
 theorem mass_conserved_of_rep {α : Type} [DecidableEq α] {n : ℕ}
     (S : ShadedTubes n) (T : Finset (List α))
     (termTube : List α → Fin n)
