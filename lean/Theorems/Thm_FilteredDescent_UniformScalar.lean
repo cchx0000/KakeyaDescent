@@ -230,6 +230,30 @@ structure BundledUniformScalarConfig (d : ℕ) (δ : ℝ) where
 
 attribute [instance] BundledUniformScalarConfig.decα BundledUniformScalarConfig.finα
 
+/-- Subtree load bounded by shading volume (P0-4c).
+
+For every retained node `x ∈ T`, tube `t`, and scale `δ'`,
+the rerooted subtree's terminal tube load is bounded by the
+full shading volume.
+
+This is the compatibility condition that allows constructing the
+restricted source `S_x` via `exists_subset_volume`. When `load` is
+source-derived via `pathMass` (P1-9), this bound follows from the
+fact that the subtree's packets are a subset of all packets.
+
+Currently taken as a hypothesis (like `LedgerBudgetCompatible` and
+`SepCompatible`); P1-9 will derive it from the source construction.
+-/
+def SubtreeLoadBounded {d : ℕ} {α : Type} [DecidableEq α] [Fintype α]
+    {δ₀ : ℝ} (cfg : UniformScalarConfig d α δ₀) : Prop :=
+  ∀ (x : List α) (_ : x ∈ cfg.T) (t : Fin cfg.phys.n) (δ' : ℝ),
+    0 < δ' → δ' < 1 →
+    termLoad (reroot cfg.T x)
+      (fun s => cfg.termTube (x ++ s))
+      (fun s δ'' => cfg.load (x ++ s) δ'')
+      t δ' ≤
+      (MeasureTheory.volume (cfg.phys.shading.Y t δ')).toReal
+
 /-- Build an `AdmissibleGeomConfig` from subtree data (for P0-2 threading).
 
 Given `cfg : UniformScalarConfig d α`, `x ∈ cfg.T`, and `δ`, constructs
@@ -353,7 +377,11 @@ theorem scalar_closure_uniform {d : ℕ}
     -- P0-8: direction separation must respect the uniform bound.
     -- Without this, a config could send its private `sep` to zero.
     (hsepcompat : ∀ δ : ℝ, ∀ cfg : BundledUniformScalarConfig d δ,
-      SepCompatible cfg.cfg.phys.family hU.sepU) :
+      SepCompatible cfg.cfg.phys.family hU.sepU)
+    -- P0-4c: subtree loads bounded by shading volumes.
+    -- Enables restricted source construction via exists_subset_volume.
+    (hloadbound : ∀ δ : ℝ, ∀ cfg : BundledUniformScalarConfig d δ,
+      SubtreeLoadBounded cfg.cfg) :
     UniformSubpowerLE (BundledUniformScalarConfig d)
       (fun δ cfg => ∑ t : Fin cfg.cfg.phys.n,
         (physicalRealization cfg.cfg.phys.family cfg.cfg.phys.shading cfg.cfg.phys.hpos).shadeVol t δ)
