@@ -185,4 +185,68 @@ theorem derivedChildMass_sum {α : Type} [Fintype α] [DecidableEq α]
     (fun U _ => Finset.mem_univ (src.trans s U))
     (fun U => packetLaw src.w U)
 
+/-- Representative-leaf mass conservation (TODO_GUIDANCE item 8, core).
+
+Given a tube assignment `termTube` on tree leaves and a choice of
+representative leaf `rep t` for each tube `t`, the load that concentrates
+each tube's shading mass on its representative satisfies mass conservation.
+
+This discharges `htotalLoad` as a theorem parameter: instead of assuming
+the bridge identity `totalLoad T load δ = ∑ t, shadeVol t δ`, it is PROVED
+from the leaf/tube representative data. The full `FaithfulModel.ofPacketSource`
+(next unit) supplies `termTube` and `rep` from the packet source. -/
+theorem mass_conserved_of_rep {α : Type} [DecidableEq α] {n : ℕ}
+    (S : ShadedTubes n) (T : Finset (List α))
+    (termTube : List α → Fin n)
+    (rep : Fin n → List α)
+    (hrep_mem : ∀ t, rep t ∈ treeLeaves T)
+    (hrep_tube : ∀ t, termTube (rep t) = t) :
+    ∀ δ : ℝ,
+      ∑ γ ∈ treeLeaves T,
+        (if γ ∈ Finset.image rep Finset.univ
+         then S.shadeVol (termTube γ) δ else 0)
+      = ∑ t, S.shadeVol t δ := by
+  intro δ
+  -- rep is injective: rep t₁ = rep t₂ → t₁ = t₂ via termTube
+  have hinj : Function.Injective rep := by
+    intro t₁ t₂ h
+    have e1 := hrep_tube t₁
+    have e2 := hrep_tube t₂
+    rw [h] at e1
+    rw [← e1, e2]
+  -- The image is contained in the leaves
+  have hsub : Finset.image rep Finset.univ ⊆ treeLeaves T := by
+    intro γ hγ
+    rw [Finset.mem_image] at hγ
+    obtain ⟨t, _, rfl⟩ := hγ
+    exact hrep_mem t
+  -- Restrict the sum to the image, then reindex by tube
+  -- Step 1: ∑ over image (with if) = ∑ over treeLeaves (with if)
+  have hrestr1 : ∑ γ ∈ Finset.image rep Finset.univ,
+        (if γ ∈ Finset.image rep Finset.univ
+         then S.shadeVol (termTube γ) δ else 0)
+      = ∑ γ ∈ treeLeaves T,
+        (if γ ∈ Finset.image rep Finset.univ
+         then S.shadeVol (termTube γ) δ else 0) := by
+    apply Finset.sum_subset hsub
+    intro γ _ hnot
+    rw [if_neg hnot]
+  -- Step 2: on the image, the if is always true
+  have hrestr2 : ∑ γ ∈ Finset.image rep Finset.univ,
+        (if γ ∈ Finset.image rep Finset.univ
+         then S.shadeVol (termTube γ) δ else 0)
+      = ∑ γ ∈ Finset.image rep Finset.univ, S.shadeVol (termTube γ) δ := by
+    apply Finset.sum_congr rfl
+    intro γ hγ
+    rw [if_pos hγ]
+  -- Step 3: reindex by tube via rep
+  have hrestr3 : ∑ γ ∈ Finset.image rep Finset.univ, S.shadeVol (termTube γ) δ
+      = ∑ t, S.shadeVol t δ := by
+    rw [Finset.sum_image (fun t _ t' _ h => hinj h)]
+    apply Finset.sum_congr rfl
+    intro t _
+    rw [hrep_tube t]
+  -- Chain: goal LHS = (step1 symm) = (step2) = (step3) = goal RHS
+  rw [← hrestr1, hrestr2, hrestr3]
+
 end FilteredDescent
