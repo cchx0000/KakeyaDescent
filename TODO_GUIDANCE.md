@@ -1,21 +1,11 @@
 # TODO Guidance — KakeyaDescent
 
-Current audit target: `main` at commit
-`8a3d6140517a17aac82936eed7a2fcbddad603dc` (2026-10-03).
+Current audit target: main at commit
+1ce5d824efa8640e2bd2e56c8a988fa0bbc03b2e (2026-10-03).
 
-This document is the execution guide for the **paper-faithful scalar route**.
-It intentionally distinguishes:
+This document tracks the remaining work for a paper-faithful authoritative scalar theorem.
 
-- local/fixed-configuration lemmas, where ordinary `SubpowerLE` is useful;
-- the authoritative Kakeya statement, where constants must be uniform over
-  scale-dependent physical configurations.
-
-The main rule is:
-
-> Do not obtain the authoritative uniform theorem by applying a
-> fixed-configuration theorem separately and then choosing its constants
-> afterwards. Every constant that survives to the top theorem must already be
-> controlled before the physical configuration is quantified.
+The repository is now source-level kernel-clean, but the newest scalar_closure_uniform closes by a uniform leaf-count shortcut rather than by the filtered-descent argument. The next work must therefore protect mathematical fidelity, not merely preserve Lean provability.
 
 ---
 
@@ -23,593 +13,411 @@ The main rule is:
 
 ## Completed and worth keeping
 
-- [x] `UniformSubpowerLE` exists with the correct basic quantifier order:
-  `C` is chosen before `cfg : Config δ`.
-- [x] `uniform_not_trivial` is a regression showing that a growing
-  `δ^{-2}` quantity cannot be hidden by choosing a configuration-dependent
-  constant.
-- [x] A scale-indexed `PhysicalConfig d δ` type exists.
-- [x] `FaithfulModel` is parameterized by the actual `S : ShadedTubes n`;
-  the old impossible `∀ S` mass-conservation field is gone.
-- [x] A nontrivial `FaithfulModel` inhabitance test exists.
-- [x] The faithful root split / duplicate identities, re-rooting, and
-  well-founded `Hpred` induction are proved.
-- [x] F7 was upgraded to `node_hardening_subpower`: it consumes subpower
-  predecessor control rather than pointwise `Hpred`.
-- [x] `HardeningLedger`, `hardeningInputsAt`, `NodeHLink`, and
-  `NodeHQuant` provide one shared per-tree hardening ledger.
-- [x] `scalar_closure_discharged` no longer takes a theorem-valued
-  `terminal_hardening : ∀ x, ...` parameter; hardening is produced from
-  the ledger inside the descent.
-- [x] Dimension-indexed `GeomInput` exists and
-  `geom_pair_of_geomInput` proves the algebraic conversion once the
-  correct subtree source-compatibility data are supplied.
-- [x] `PacketSource` derives child mass from the packet law via
-  `derivedChildMass` / `packetSelectOfSource`.
-- [x] `derivedChildMass_sum` proves the one-step packet-mass fiber identity.
-- [x] Paper-faithful `pathMass` and `pathMass_partition` formalize the
-  child-cylinder partition behind paper (133).
-- [x] The self-invented representative-leaf `SourceModel` layer was removed.
-- [x] The symmetric toy `scalar_closure_constructed` theorem was removed.
+- [x] UniformSubpowerLE has the correct outer quantifier order.
+- [x] uniform_not_trivial blocks a simple configuration-dependent C = n(delta) proof.
+- [x] PhysicalConfig is scale-indexed.
+- [x] FaithfulModel is parameterized by the actual analytic family.
+- [x] The faithful root split, duplicate identities, rerooting, and well-founded predecessor induction are proved.
+- [x] node_hardening_subpower consumes subpower predecessor control.
+- [x] HardeningLedger and per-node hardening data are threaded through the fixed-configuration descent.
+- [x] scalar_closure_discharged derives terminal hardening from the ledger rather than taking a theorem-valued hardening hypothesis.
+- [x] Dimension-indexed GeomInput and the algebraic hereditary conversion exist.
+- [x] PacketSource derives child mass from the packet law.
+- [x] derivedChildMass_sum proves one-step packet-mass fiber conservation.
+- [x] pathMass / pathMass_partition formalize the child-cylinder partition behind paper (133).
+- [x] The representative-leaf source model was removed.
+- [x] The symmetric toy scalar theorem was removed.
+- [x] The former final sorry in scalar_closure_uniform has been removed.
 
-## Kernel/source hygiene at this audit
+## Kernel/source hygiene
 
-Across the current 44 Lean files:
+At the current HEAD:
 
-- no project custom `axiom`, `constant`, `opaque`, `extern`, or
-  `implemented_by` was found;
-- no `admit` / `sorryAx` was found;
-- **one real `sorry` remains**, in
-  `Thm_FilteredDescent_UniformScalar.lean`, theorem
-  `scalar_closure_uniform`.
+- no actual sorry, admit, or sorryAx was found;
+- no project custom axiom, constant, opaque, extern, or implemented_by was found in the audited formal core.
 
-Therefore the README sentence claiming zero `sorry` is currently stale.
+This is a real milestone.
+
+However:
+
+> 0 sorry does not currently mean the authoritative theorem follows the paper's descent.
+
+The new top proof bypasses it.
 
 ---
 
-# P0 — Make the authoritative uniform theorem actually true
+# P0 — Remove the new top-level trivialization
 
-## 1. Do not prove uniformity by post-processing local `SubpowerLE`
+## 1. Delete the fixed leaf-count shortcut from the authoritative theorem
 
-The authoritative theorem currently has the right outer target:
+Current admissibility adds a condition of the form
 
-```lean
-UniformSubpowerLE (UniformScalarConfig d α) X Y
-```
+treeLeaves.card <= branching_bound ^ height_bound,
 
-but every configuration contains local fixed-family data whose
-`SubpowerLE` witnesses may have unrelated constants.
+with both bounds fixed outside the varying configuration.
 
-The current `sorry` in `scalar_closure_uniform` is therefore not a tactic
-gap. It is a **uniformity/specification gap**.
+Then scalar_closure_uniform proves
 
-In particular, the fixed-configuration proof may introduce constants from:
+sum shadeVol
+= totalLoad
+<= card(leaves) * unionVol
+<= B^H * unionVol,
 
-- the geometric pair estimate;
-- `HardeningLedger.hcard`;
-- `1 / c₀`;
-- the finite maximum in `uniform_proper_const`;
-- the tree height
-  `T.sup' ... List.length + 1`;
-- any finite alphabet / branching data fixed before local `SubpowerLE`
-  chooses its witness.
+and finishes with 1 <= delta^(-epsilon).
+
+This proof does not use:
+
+- hU.geom;
+- uniformGeomPair_to_local;
+- HardeningLedger;
+- hlinkAt;
+- hquantAt;
+- the faithful root-cross gate;
+- the well-founded descent.
+
+It therefore proves a bounded-leaf statement, not the filtered descent claimed by the paper.
 
 ### Target
 
-Introduce global assumptions/certificates whose constants are chosen before
-the varying configuration. For example, conceptually:
+Remove hadm_leaves as a hypothesis strong enough to imply the final scalar bound directly.
 
-```lean
-UniformGeomInput d
-UniformHardeningBudget d
-UniformDescentComplexity d
-```
-
-or one combined `UniformDescentAssumptions d`.
-
-The exact API can differ. The essential point is that these are statements
-over **all admissible configurations**, not fields carrying unrelated local
-`SubpowerLE` proofs inside each configuration.
+If the paper controls tree height or branching only by subpower factors, encode those factors as quantities consumed inside the descent, not as a fixed cardinality bound yielding the conclusion immediately.
 
 ### Acceptance test
 
-`scalar_closure_uniform` is proved with no `sorry`, and its proof never
-extracts a fixed-configuration `SubpowerLE` constant and then tries to take
-a maximum over all configurations.
+The authoritative theorem must genuinely depend on
+
+uniform geometric root-cross input
+-> hardening / predecessor induction
+-> faithful gate
+-> scalar closure.
+
+Deleting the root-cross/descent imports must make the authoritative theorem fail to compile.
 
 ---
 
-## 2. Uniformize the geometric input itself
+## 2. Replace UniformDescentComplexity by paper-faithful subpower complexity
 
-Current `GeomInput d S.shadeVol S.unionVol` is dimension-indexed, which is
-good, but its payload is still a **local** `SubpowerLE` for one fixed finite
-family.
+Current UniformDescentComplexity stores fixed natural-number bounds for tree height and branching.
 
-That local statement is not enough for the uniform theorem.
+That is substantially stronger than the paper's refined-history control H_{I,k} = delta^{-o(1)} and related subpower structural losses.
 
 ### Target
 
-Add a genuinely uniform external-input interface over scale-indexed physical
-configurations / hereditary source restrictions. Schematically:
+Track exactly the complexity quantities that enter the paper estimates:
 
-```lean
-def UniformGeomInput (d : ℕ) : Prop :=
-  UniformSubpowerLE (AdmissibleGeomConfig d) pairEnergy rhs
-```
+- history height;
+- support/confluence/Cartan bookkeeping;
+- carrier counts;
+- finite maxima created by the Lean induction.
 
-The constructors/fields should distinguish the actual d=2, d=3, d=4 input
-roles, but the common constant must be chosen before the concrete tube family,
-tube count, marks, or subtree.
-
-Deep results [2], [7,10], [9] may remain **named external hypotheses**. They
-do not need to be re-proved here. Their *formal statement* must have the
-correct uniform quantifiers.
+They should be controlled by uniform subpower estimates, not by a fixed global bound on all leaves.
 
 ### Acceptance test
 
-The authoritative uniform theorem no longer gets a per-configuration field
-
-```lean
-geom_pair : ∀ x ∈ T, SubpowerLE ...
-```
-
-whose hidden constant may depend on that configuration.
+Admissible configurations may have a number of histories/leaves growing with delta^{-1}, provided the paper's approved structural losses remain delta^{-o(1)}.
 
 ---
 
-## 3. Add a uniform descent-complexity certificate
+# P0 — Fix UniformGeomInput: current statement is too strong
 
-The current local descent correctly extracts one constant for all proper
-vertices of a **fixed finite tree** using `uniform_proper_const`. That is
-not yet uniform across varying trees.
+## 3. Do not quantify over arbitrary nonnegative tubeLoad
 
-The current proper-predecessor estimate also explicitly contains the tree
-height.
+Current AdmissibleGeomConfig contains an arbitrary nonnegative tubeLoad with no source/shading compatibility.
+
+Then UniformGeomInput requires the pair estimate for every such load.
+
+This is generally impossible. If two tube loads are scaled by lambda, then
+
+pairEnergy grows like lambda^2,
+while geomRHS grows like lambda.
+
+So no fixed uniform constant can control arbitrary lambda.
+
+Thus UniformGeomInput in its current form is likely uninhabited for any nontrivial family with at least two tubes.
 
 ### Target
 
-Formalize the paper's source-subpower complexity control, e.g. a certificate
-that controls, uniformly over admissible configurations:
+The geometric input must quantify only over loads arising from the relevant paper class:
 
-- refined history-tree height;
-- relevant branching/alphabet complexity;
-- finite support / confluence / Cartan ceilings when they enter constants;
-- any finite maxima used by the induction.
+- actual shaded tube families;
+- retained/source-restricted descendants;
+- hereditary subtree sources;
+- marked variants in d=4.
 
-Do not simply bound the full tree cardinality if the paper only needs height
-or a smaller structural quantity; follow the paper's ledger.
-
-A possible shape is:
-
-```lean
-structure UniformDescentComplexity ... where
-  height : ...
-  height_subpower : UniformSubpowerLE ... height 1
-  ...
-```
+Do not allow a free arbitrary tubeLoad.
 
 ### Acceptance test
 
-The constant produced by the uniform descent depends only on
-`ε`, `d`, and explicitly approved fixed paper parameters, not on the
-concrete `T`.
+Construct at least one nontrivial admissible d=2/d=3/d=4 geometric configuration from the intended physical source.
+
+Add a regression preventing arbitrary rescaling of tubeLoad unless the physical/shading source is rescaled in the corresponding legal way.
 
 ---
 
-## 4. Uniformize the hardening ledger constants
+## 4. Derive subtree geometric loads from restricted physical sources
 
-`HardeningLedger` is now correctly shared across all subtrees of one tree,
-but it remains local to one configuration.
+The current admGeomConfigOfSubtree inserts rerooted termLoad into the overly broad geometric configuration.
 
-Two quantities are especially important:
-
-```lean
-L.hcard : SubpowerLE (fun _ => card L.K) (fun _ => 1)
-L.c₀
-```
-
-For a fixed finite `K`, the first statement is automatic if its constant may
-depend on `K`. Likewise the final hardening constant contains a factor
-proportional to `1 / c₀`.
+That makes threading syntactically easy, but does not prove that the load belongs to the class on which Cordoba/sticky/marked-4D applies.
 
 ### Target
 
-At the uniform level, require/derive:
+For every retained node x, construct the actual restricted source/shading S_x and prove:
 
-- carrier-count control with one constant before the configuration;
-- a uniform or subpower control of `1 / c₀`;
-- any other packet-class constants that survive
-  `node_hardening_subpower`.
+- rerooted terminal tube load = shading load of S_x;
+- rerooted total load = total shading mass of S_x.
+
+Then instantiate the uniform geometric theorem on S_x.
 
 ### Acceptance test
 
-There is no route in the uniform proof that can choose
-`Cκ = card K` separately for each configuration.
+uniformGeomPair_to_local cannot be instantiated from an arbitrary nonnegative function; it requires a source-derived subtree geometry witness.
 
 ---
 
-## 5. Remove hidden pre-`C` configuration complexity from the top theorem
+# P0 — Force the authoritative theorem back through the descent
 
-Current theorem:
+## 5. scalar_closure_uniform must call the real descent machinery
 
-```lean
-theorem scalar_closure_uniform
-    {d : ℕ} {α : Type} [DecidableEq α] [Fintype α] : ...
-```
-
-fixes the finite label type `α` **before** `UniformSubpowerLE` chooses
-`C`. Hence the final constant is formally allowed to depend on `α` and
-its finite cardinality.
-
-This is contrary to the stated goal that `C` not depend on the history
-alphabet/configuration.
-
-It also does not fit naturally with the source-derived faithful tree whose
-node/state type depends on the scale-dependent tube count `n(δ)`.
+The current proof never invokes the machinery that the theorem is supposed to formalize.
 
 ### Target
 
-Move configuration-specific label/state types inside the dependent
-configuration, or otherwise prove explicitly that the constant is independent
-of `α`.
+Build a uniform version of the fixed-configuration chain:
 
-For example, the final config may carry its own label type and instances:
+source/tree data
+-> uniform local geom_pair
+-> node_hardening_subpower
+-> descent_bound / faithful_gate_discharged
+-> N^2 <= subpower * Bpred * N
+-> scalar division.
 
-```lean
-structure UniformScalarConfig (d : ℕ) (δ : ℝ) where
-  Label : Type
-  instDecEqLabel : DecidableEq Label
-  instFintypeLabel : Fintype Label
-  ...
-```
-
-but then the uniform proof must control the resulting complexity through the
-uniform descent certificate, not by depending on the type itself.
+All constants must be tracked uniformly from UniformDescentAssumptions.
 
 ### Acceptance test
 
-No arbitrary finite configuration-dependent type/value is quantified outside
-the uniform `∃ C` unless it is an explicitly approved fixed parameter.
+The final proof visibly consumes hU.geom and the hardening/complexity certificates. No component of UniformDescentAssumptions may be decorative.
 
 ---
 
-## 6. Fix the physical configuration's scale separation semantics
+## 6. Make the uniform hardening budget actually constrain the local ledger
 
-`PhysicalConfig d δ` is scale-indexed, but it currently contains a
-`TubeFamily n d` whose field is
-
-```lean
-dir_separated :
-  ∀ t ≠ t', ∀ δ', 0 < δ' → δ' < 1 →
-    sep * δ' ≤ ‖dir t - dir t'‖
-```
-
-with `sep` itself stored in the concrete family.
-
-This does **not** cleanly encode a universal `c · δ` direction separation
-at the current scale with `c` independent of the configuration. A concrete
-family can shrink its own `sep`.
+UniformHardeningBudget stores global quantities, but the current top proof does not use them, while each local HardeningLedger still carries its own hcard and c0.
 
 ### Target
 
-Give the scale-indexed physical configuration a current-scale separation
-condition with the comparison constant fixed outside the configuration, e.g.
+Add explicit compatibility between every local ledger and the uniform budget:
 
-```lean
-cSep * δ ≤ ‖dir t - dir t'‖
-```
-
-for a fixed approved `cSep > 0`, or normalize to `δ ≤ ...`.
-
-Prefer a genuinely single-scale physical object (`TubeFamilyAt δ`,
-`ShadingAt δ`) if this removes irrelevant all-scale fields.
+- carrier count controlled uniformly;
+- inverse c0 controlled uniformly or subpower-uniformly;
+- any other constants surviving node_hardening_subpower controlled uniformly.
 
 ### Acceptance test
 
-The class of admissible configurations in the uniform theorem is exactly the
-intended direction-separated finite-scale Kakeya class, with no
-configuration-dependent separation constant leakage.
+A local ledger with arbitrarily huge carrier alphabet or arbitrarily tiny c0 cannot enter an admissible uniform configuration without paying the approved subpower loss.
 
 ---
 
-# P1 — Finish the paper-faithful source provenance
+## 7. Remove hidden dependence on the fixed label type alpha
 
-## 7. Build loads from `pathMass`, not from representatives
+The theorem still fixes a finite label type alpha before UniformSubpowerLE chooses its constant.
 
-The representative-leaf `SourceModel` was correctly removed.
-
-The current faithful source facts are now:
-
-- `packetSelectOfSource`;
-- `derivedChildMass_sum`;
-- `pathMass`;
-- `pathMass_partition` (paper (133)).
-
-The next step is to make the actual history loads come from the same physical
-joint source/cylinder flow.
+Therefore the final constant is formally allowed to depend on alpha, although the theorem documentation says it should not depend on the history alphabet.
 
 ### Target
 
-Construct the retained history load `u_γ` / integrated load from
-`pathMass` (and the physical incidence source) so that the following are
-theorems, not arbitrary model fields:
+Either move the configuration-specific label/state type inside the dependent configuration, or prove an explicit uniformity theorem whose constant is independent of alpha.
+
+### Acceptance test
+
+No arbitrary finite configuration-dependent type is fixed before the top existential constant unless it is an explicitly approved fixed paper parameter.
+
+---
+
+## 8. Fix current-scale direction separation
+
+PhysicalConfig is scale-indexed, but TubeFamily still carries its own configuration-dependent positive sep and an all-scale condition.
+
+### Target
+
+Encode the intended finite-scale direction separation with a comparison constant fixed outside the varying configuration, for example cSep * delta <= distance of directions, or normalized delta-separation.
+
+### Acceptance test
+
+An admissible sequence cannot weaken the geometric hypothesis by sending its private separation constant to zero.
+
+---
+
+# P1 — Finish the paper-faithful retained source
+
+## 9. Build history loads from pathMass
+
+The representative-leaf workaround was correctly deleted.
+
+The current source primitives are the right direction:
+
+- packetSelectOfSource;
+- derivedChildMass_sum;
+- pathMass;
+- pathMass_partition.
+
+### Target
+
+Construct the actual retained history load from the same packet/incidence source so that the following become theorems:
 
 - nonnegativity;
-- child-cylinder partition (133), preferably over the actual selected
-  children rather than all possible states;
-- root total-load identity (136) for the **retained source**;
-- terminal-tube disintegration (143)/(145);
+- child partition (133);
+- root identity (136) for the retained source;
+- terminal tube decomposition (143)/(145);
 - the leaf bound used by the descent.
 
-`termTube` must be derived from the terminal physical incidence/tube label,
-not chosen as an unrelated function.
+termTube must come from the terminal physical incidence label rather than be an unrelated function parameter.
 
 ### Acceptance test
 
-There is a source-derived constructor/theorem feeding the faithful tree whose
-`load` and `termTube` come from the packet/incidence source, with no
-representative-leaf device.
+A single paper-faithful source constructor provides the tree, load, terminal tube labels, and their mass identities.
 
 ---
 
-## 8. Treat deletion correctly: retained mass is not the original mass
+## 10. Do not equate retained mass with original mass after deletion
 
-This is now a crucial semantic point.
-
-`derivedChildMass_sum` conserves
-
-```text
-retained ∩ survives-deletion
-```
-
-mass. It does **not** say that deletion preserves the full original shading
-mass exactly.
-
-Therefore the authoritative source path should not try to prove
-
-```lean
-totalLoad = ∑ originalShadeVol
-```
-
-after nonzero source-small deletion unless the paper genuinely gives that
-identity.
-
-Paper (130) keeps only a controlled fraction and paper (214) converts the
-retained descendant back to an ordinary incidence statement.
+derivedChildMass_sum conserves retained/surviving packet mass. It does not restore deleted mass.
 
 ### Target
 
-Choose one paper-faithful formulation:
+Follow paper (130) and (214):
 
-1. define a retained descendant shading `Sret` and prove the exact identity
-   `totalLoad = ∑ Sret.shadeVol`, together with a uniform/subpower lower
-   bound comparing retained mass to the original source; or
-2. carry an explicit retained fraction `α` through the authoritative
-   theorem and use the terminal threshold/unweighting step.
-
-Connect the existing `SourceLedger` / Markov deletion facts to this bridge.
+- define the retained descendant physical shading/source;
+- prove exact mass identities for that retained object;
+- prove the retained fraction / source-small loss;
+- perform terminal weighted-to-unweighted recovery to the original incidence source.
 
 ### Acceptance test
 
-No proof of source conservation relies on pretending deleted mass is still
-present. The final theorem explicitly recovers the original incidence scale
-through the paper's retained-mass estimate.
+No post-deletion theorem claims retained totalLoad = original total shading unless deletion is actually zero.
 
 ---
 
-## 9. Make hereditary geometry use the restricted subtree source
+## 11. Derive the hardening ledger from the same source
 
-`geom_pair_of_geomInput` is algebraically proved given
-`hcompat_sub` and `htotal_sub`.
-
-However its current compatibility hypothesis identifies every proper
-re-rooted subtree's terminal loads with the **full original**
-`S.shadeVol`:
-
-```lean
-termLoad (reroot T x) ... t δ = S.shadeVol t δ
-```
-
-That is generally too strong for a proper subtree. The paper's hereditary
-statement uses the source restricted to the corresponding cylinder/subtree.
+The fixed-configuration main chain still takes HardeningLedger, hlinkAt, and hquantAt as source-independent inputs.
 
 ### Target
 
-Define the restricted physical/analytic object `S_x` (or equivalent
-conditional source) attached to a node `x`, and prove:
+Construct from the same packet/history source:
 
-```text
-rerooted termLoad at x = shadeVol of S_x
-rerooted totalLoad at x = total shading of S_x
-```
-
-Then apply the **uniform hereditary geometric input** to `S_x`.
+- the (theta,j,c) classifier;
+- common-source aggregates;
+- R5 link (150)-(151);
+- density comparability;
+- carrier family/count (152).
 
 ### Acceptance test
 
-The strongest path does not assume that every proper subtree reproduces the
-full root shading.
+The source constructor yields both the history tree and the hardening ledger; NodeHLink and NodeHQuant are proved, not independently assumed.
 
 ---
 
-## 10. Derive the hardening ledger from the same source
+## 12. Derive the transition map from the actual descent operations
 
-`HardeningLedger` is structurally improved, but the authoritative
-fixed-config theorem still accepts:
-
-```lean
-L : HardeningLedger ...
-hlinkAt
-hquantAt
-```
-
-as named inputs.
+PacketSource.trans still carries htrans_step as a field.
 
 ### Target
 
-Construct these from the same paper data that generate the history tree:
-
-- `(θ,j,c)` class assignment;
-- common-source packet aggregates;
-- the R5 link (150)–(151);
-- branch-density comparability;
-- the coarse carrier family / count (152).
-
-The per-node `clsAt` must be source-derived, not an arbitrary classifier.
+Define the transition from the actual first-failed-face / support / confluence / Cartan operation and prove the label decrease.
 
 ### Acceptance test
 
-The paper-faithful source constructor yields both the history tree and its
-hardening ledger, and `NodeHLink` / `NodeHQuant` follow by theorem.
+The strongest source path does not inject an arbitrary state transition with the desired decrease property already attached.
 
 ---
 
-## 11. Finish transition provenance
+# P2 — Repository and theorem hygiene
 
-`PacketSource.trans` currently carries
+## 13. Redesign AdmissibleUniformScalarConfig
 
-```lean
-htrans_step : ∀ s U, DescentStep (trans s U) s
-```
+The current name suggests paper-admissible, but its decisive condition is the non-paper fixed leaf-count shortcut.
 
-as a field.
+### Target
 
-That is a useful interface, but the final paper-faithful construction should
-derive it from the actual first-failed-face / confluence / Cartan transition
-rules.
+Replace it with a configuration whose fields express exactly the paper hypotheses and the uniform certificates needed by the real descent.
+
+No field may directly imply the final scalar estimate by elementary finite summation.
 
 ### Acceptance test
 
-Provide a concrete constructor for the paper's transition map whose
-`htrans_step` proof follows from the defined support/confluence/Cartan
-operation.
+Try to prove the final bound after removing all root-cross/descent lemmas. The proof should fail.
 
 ---
 
-# P2 — Authoritative theorem and repository hygiene
+## 14. Add non-vacuity regression tests
 
-## 12. Keep exactly one authoritative top-level claim
+Add checks for both forms of accidental vacuity discovered so far:
 
-The intended authoritative endpoint is the uniform physical scalar theorem,
-not the old fixed-`n` `SubpowerLE` statements.
+1. too-strong conclusion-bearing admissibility;
+2. uninhabitable external input.
 
-Local theorems such as `scalar_closure_discharged` remain valuable internal
-lemmas, but documentation must not present them as the final Kakeya-uniform
-statement.
+Useful regressions:
 
-### Acceptance test
+- exhibit a nontrivial admissible geometric configuration;
+- exhibit a nontrivial admissible uniform scalar configuration built from the intended source data;
+- prove admissibility is preserved under the actual hereditary restriction used by the paper.
 
-The authoritative dependency path is visibly:
+---
 
-```text
+## 15. Keep the authoritative dependency closure auditable
+
+The final dependency path should be:
+
 scale-indexed physical source
-  -> paper packet/source ledger
-  -> retained pathMass history loads
-  -> faithful history tree + hardening ledger
-  -> restricted subtree physical sources
-  -> uniform d=2/3/4 geometric input
-  -> uniform well-founded descent / root-cross gate
-  -> retained ordinary incidence
-  -> terminal unweighting to the original source
-```
+-> packet/source ledger
+-> retained pathMass history loads
+-> faithful history tree + hardening ledger
+-> restricted subtree physical source
+-> uniform d=2/3/4 geometric input
+-> uniform well-founded descent
+-> faithful root-cross gate
+-> retained scalar incidence
+-> terminal unweighting to original source.
 
-and no old trivial-tree/symmetric-toy route is in that dependency closure.
-
----
-
-## 13. Eliminate the remaining `sorry` before claiming kernel-clean status
-
-At the current audited HEAD the only real `sorry` is the proof of
-`scalar_closure_uniform`.
-
-Until it is removed, do not claim "zero sorry" or "0 warnings" for the full
-default build.
-
-If the uniform theorem is not yet provable because its assumptions are still
-being redesigned, prefer temporarily exposing its type as a named
-`Prop`/claim or clearly WIP theorem rather than presenting a `sorry` theorem
-as completed.
-
-### Acceptance test
-
-Repository-wide scan:
-
-- zero `sorry`;
-- zero `sorryAx`;
-- zero project custom `axiom` / `constant` / `opaque` / `extern`;
-- authoritative theorem's `#print axioms` shows only the expected standard
-  Lean/mathlib logical axioms.
+No direct bounded-cardinality argument should bypass this path.
 
 ---
 
-## 14. Add regression guards for the new failure modes
+## 16. Synchronize README / MAPPING / TODO
 
-In addition to `uniform_not_trivial`, add checks that catch:
-
-- reintroduction of a configuration-local `C = n` route;
-- configuration-local carrier-count constants;
-- top-level dependence on a fixed finite label alphabet;
-- loss of the current-scale direction-separation condition;
-- an exact full-mass identity after a nonzero deletion step;
-- a proper subtree being identified with the full root shading;
-- authoritative imports falling back to the old simplified path;
-- README/MAPPING claiming zero `sorry` while one exists.
-
-Where practical, make these compile-time theorem tests rather than comments.
-
----
-
-## 15. Synchronize README and MAPPING with the code
-
-Current README is stale: it still reports zero `sorry`, while
-`scalar_closure_uniform` contains one.
-
-The documentation also predates several important developments:
-
-- uniform API and scale-indexed config;
-- ledger-based hardening integration;
-- dimension-indexed `GeomInput`;
-- packet-derived child mass and `pathMass_partition`;
-- deliberate removal of the representative-leaf source model;
-- removal of the symmetric toy scalar theorem.
+The README's zero-sorry claim is now consistent with the audited source, but much of its remaining-hypotheses section predates the latest ledger and uniform refactors.
 
 ### Acceptance test
 
 README, MAPPING, and this TODO agree on:
 
-- the authoritative theorem;
-- the exact remaining named external inputs;
-- the exact number of `sorry`s;
-- which source/provenance bridges are proved versus still open.
+- which theorem is authoritative;
+- whether that theorem actually follows the filtered-descent path;
+- the exact named external geometric hypotheses;
+- which source bridges are proved versus open;
+- the current axiom/sorry status.
 
 ---
 
-# Recommended execution order from the current HEAD
+# Recommended execution order from current HEAD
 
-1. **Repair the authoritative uniform specification**:
-   remove hidden `α`/tree/carrier/separation dependence and define the
-   uniform geom/hardening/complexity assumptions.
-2. **Build the paper-faithful retained source model from `pathMass`**,
-   including deletion/retention bookkeeping.
-3. **Derive terminal-tube loads and root/retained mass identities** from that
-   source.
-4. **Define restricted subtree physical sources** and discharge hereditary
-   geometric compatibility correctly.
-5. **Derive `HardeningLedger`, `hlinkAt`, and `hquantAt` from the same
-   source/carrier data**, with uniform (152) control.
-6. **Prove a uniform version of the descent induction/root-cross closure**
-   using the explicit uniform complexity budgets.
-7. **Prove `scalar_closure_uniform` with no `sorry`**.
-8. **Restore the paper's retained-to-original terminal unweighting step** in
-   the authoritative physical theorem.
-9. **Run axiom/source regression checks and synchronize README/MAPPING**.
+1. Remove the fixed leaf-count shortcut from the authoritative theorem.
+2. Restrict UniformGeomInput to actual source-derived geometric loads.
+3. Define paper-faithful uniform complexity controls.
+4. Wire the uniform hardening budget to every local ledger.
+5. Make scalar_closure_uniform consume the real descent/gate.
+6. Build retained history loads and terminal labels from pathMass.
+7. Construct hereditary restricted physical sources S_x.
+8. Derive hardening ledgers from the same source.
+9. Carry deletion/retained fraction through terminal unweighting.
+10. Remove hidden alpha/separation-constant dependence.
+11. Add non-vacuity and dependency regression tests.
+12. Synchronize README/MAPPING after the corrected authoritative theorem is in place.
 
 ---
 
-# Current main blockers, in one sentence
+# Current main blocker, in one sentence
 
-The local faithful descent machinery is now largely in place; the remaining
-work is to turn the paper's **single retained physical source** into all of the
-tree/load/hardening/subtree data with **uniform constants across
-scale-dependent configurations**, and only then close the one remaining
-authoritative `scalar_closure_uniform` proof.
+The repository is now 0-sorry, but the authoritative uniform theorem is currently true for the wrong reason: a fixed leaf-count assumption makes the scalar estimate elementary, while the stated uniform geometric input is too broad to be obviously inhabitable; the next revision must restore the actual paper-faithful source -> subtree geometry/hardening -> descent -> root-cross dependency chain.
