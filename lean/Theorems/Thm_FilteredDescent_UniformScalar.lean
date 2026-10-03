@@ -400,18 +400,13 @@ noncomputable def restrictedShading {d : ℕ} {α : Type} [DecidableEq α] [Fint
     · exact cfg.phys.shading.measurable t δ' hδ0 hδ1
     · rfl
     · -- 0 ≤ subtreeTermLoad: via termLoad_nonneg
-      -- subtreeTermLoad = termLoad (reroot cfg.T x) (fun s => cfg.termTube (x ++ s))
-      --   (fun s δ'' => cfg.load (x ++ s) δ'') t δ'
       unfold subtreeTermLoad
-      apply termLoad_nonneg
-      -- Need: ∀ s ∈ treeLeaves (reroot cfg.T x), 0 ≤ cfg.load (x ++ s) δ'
+      apply termLoad_nonneg _ _ _ _ t δ' hδ0 hδ1
+      -- Need: ∀ s ∈ treeLeaves (reroot cfg.T x), ∀ δ'', 0 < δ'' → δ'' < 1 →
+      --   0 ≤ (fun s δ'' => cfg.load (x ++ s) δ'') s δ''
       intro s hs δ'' hδ0' hδ1'
-      -- s ∈ treeLeaves (reroot cfg.T x) → x ++ s ∈ treeLeaves cfg.T
-      -- Then apply cfg.hload
-      have hmem : x ++ s ∈ treeLeaves cfg.T := by
-        -- treeLeaves (reroot T x) = {s | x ++ s ∈ treeLeaves T} (up to)
-        -- Need the reroot leaves characterization
-        sorry
+      have hmem : x ++ s ∈ treeLeaves cfg.T :=
+        reroot_leaf_lift cfg.T x hs
       exact cfg.hload (x ++ s) hmem δ'' hδ0' hδ1'
     · exact hbound t δ' hδ0 hδ1
   -- Use choice to get Y_x as a function
