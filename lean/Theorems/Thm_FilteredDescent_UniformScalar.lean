@@ -292,8 +292,11 @@ noncomputable def admGeomConfigOfSubtree {d : ℕ} {α : Type} [DecidableEq α] 
     {δ₀ : ℝ} (cfg : UniformScalarConfig d α δ₀) (x : List α) (hx : x ∈ cfg.T)
     (δ : ℝ) (hδ0 : 0 < δ) :
     AdmissibleGeomConfig d δ where
-  -- Reuse n, family, shading from cfg.phys (δ-independent); hpos works for all δ'
-  -- P0-4 will replace this with the restricted source S_x.
+  -- P0-4: Currently reuses cfg.phys. The full version takes
+  -- (hbound : SubtreeLoadBounded cfg) and uses
+  --   restrictedShading cfg x hx hbound
+  -- to build the restricted source S_x. The hbound hypothesis is now
+  -- available via the theorem's hloadbound (P0-4c).
   phys := ⟨cfg.phys.n, cfg.phys.family, cfg.phys.shading, cfg.phys.hpos⟩
 
 /-- Subtree terminal tube load (P0-4).
