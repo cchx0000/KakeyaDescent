@@ -272,6 +272,43 @@ noncomputable def admGeomConfigOfSubtree {d : ℕ} {α : Type} [DecidableEq α] 
   -- P0-4 will replace this with the restricted source S_x.
   phys := ⟨cfg.phys.n, cfg.phys.family, cfg.phys.shading, cfg.phys.hpos⟩
 
+/-- Subtree terminal tube load (P0-4).
+
+For `x ∈ cfg.T`, the rerooted subtree's load at tube `t` and scale `δ'` is
+the sum of `cfg.load` over rerooted leaves mapping to `t` via the rerooted
+`termTube`. This is the `termLoad` that the restricted source `S_x` must
+realize as its shading volume.
+-/
+noncomputable def subtreeTermLoad {d : ℕ} {α : Type} [DecidableEq α] [Fintype α]
+    {δ₀ : ℝ} (cfg : UniformScalarConfig d α δ₀) (x : List α)
+    (t : Fin cfg.phys.n) (δ' : ℝ) : ℝ :=
+  termLoad (reroot cfg.T x)
+    (fun s => cfg.termTube (x ++ s))
+    (fun s δ'' => cfg.load (x ++ s) δ'')
+    t δ'
+
+/-- Restricted shading for subtree `x` (P0-4b, in progress).
+
+Given the bound `subtreeTermLoad ≤ shadeVol` (which follows from P1-9 when
+`load` is source-derived), constructs a `Shading` whose volumes equal the
+subtree's terminal tube loads, using `exists_subset_volume`.
+
+The bound hypothesis is the precise gap: P1-9 must prove that the
+source-derived `load` (via `pathMass`) satisfies
+`termLoad_x t δ' ≤ shadeVol t δ'`.
+-/
+noncomputable def restrictedShading {d : ℕ} {α : Type} [DecidableEq α] [Fintype α]
+    {δ₀ : ℝ} (cfg : UniformScalarConfig d α δ₀) (x : List α) (hx : x ∈ cfg.T)
+    (hbound : ∀ t δ', 0 < δ' → δ' < 1 →
+      subtreeTermLoad cfg x t δ' ≤
+        (MeasureTheory.volume (cfg.phys.shading.Y t δ')).toReal) :
+    Shading cfg.phys.family :=
+  -- Construction via exists_subset_volume (details deferred).
+  -- For each t, δ', choose a measurable subset of Y t δ' with volume
+  -- exactly subtreeTermLoad cfg x t δ'. The measurability and subset
+  -- properties follow from the lemma's guarantee.
+  sorry
+
 -- NOTE (TODO_GUIDANCE P0-4): The `uniformGeomPair_to_local` lemma (deriving
 -- per-subtree `SubpowerLE` from `hU.geom`) was removed. It required the
 -- `AdmissibleGeomConfig` to carry the subtree's `termLoad`, but P0-3 fixed the
