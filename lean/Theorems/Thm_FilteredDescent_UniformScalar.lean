@@ -194,18 +194,27 @@ theorem scalar_closure_uniform {d : ℕ} {α : Type} [DecidableEq α] [Fintype �
   intro ε hε
   -- By the uniform assumptions, obtain uniform constants BEFORE the config.
   obtain ⟨C_geom, hC_geom, hgeom⟩ := hU.geom ε hε
-  -- Combine: C = C_geom * (hcard_bound + 1). The complexity certificate
-  -- ensures tree height/branching are uniformly bounded, so the descent
-  -- ledger constant does not depend on the specific configuration.
-  refine ⟨C_geom * (hU.hard.hcard_bound + 1), ?_, fun δ hδ0 hδ1 cfg => ?_⟩
-  · apply mul_nonneg hC_geom
-    linarith [hU.hard.hcard_nonneg]
+  -- Combine: C = C_geom * (hcard_bound + 1) * (branching_bound + 1)^{height_bound}.
+  -- The complexity certificate (hU.comp) ensures tree height/branching are
+  -- uniformly bounded, so the descent ledger constant does not depend on the
+  -- specific configuration's tree T.
+  -- Note: (branching_bound + 1)^{height_bound} bounds the tree size; the
+  -- paper's ledger uses height more carefully, but this suffices for the
+  -- uniform constant existence (P0-3).
+  set B := (hU.comp.branching_bound : ℝ) + 1 with hB
+  set H := hU.comp.height_bound with hH
+  refine ⟨C_geom * (hU.hard.hcard_bound + 1) * B ^ H, ?_, fun δ hδ0 hδ1 cfg => ?_⟩
+  · apply mul_nonneg
+    · apply mul_nonneg hC_geom
+      linarith [hU.hard.hcard_nonneg]
+    · apply pow_nonneg (by linarith : (0:ℝ) ≤ B)
   · -- For each config, apply the local descent with UNIFORM constants.
     -- hU.geom : uniform pair bound; hU.hard : uniform ledger bounds;
-    -- hU.comp : uniform tree complexity bounds.
+    -- hU.comp : uniform tree complexity bounds (height ≤ H, branching ≤ B).
     -- The full threading through scalar_closure_discharged_physical
     -- is deferred: it requires refactoring the descent to consume
-    -- uniform inputs throughout (TODO_GUIDANCE P0-1 acceptance).
+    -- uniform inputs throughout and to verify cfg.T respects hU.comp
+    -- (TODO_GUIDANCE P0-1/P0-3 acceptance).
     sorry
 
 end FilteredDescent
