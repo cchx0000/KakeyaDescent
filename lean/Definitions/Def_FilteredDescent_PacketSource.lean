@@ -290,4 +290,49 @@ theorem pathMass_partition {α : Type} [Fintype α] [DecidableEq α]
     (fun U _ => Finset.mem_univ (src.trans (p.getLast hp) U))
     (fun U => packetLaw src.w U)
 
+/-- Paper §10.1: `pathMass` is nonnegative (source-derived history load).
+
+Each term `packetLaw src.w U` is nonnegative when `w` is nonnegative
+(`src.hw_nonneg`), so the sum is nonnegative.
+-/
+theorem pathMass_nonneg {α : Type} [Fintype α] [DecidableEq α]
+    {n r : ℕ} (src : PacketSource α n r) (p : List (DescentState α n)) :
+    0 ≤ pathMass src p := by
+  unfold pathMass
+  apply Finset.sum_nonneg
+  intro U _
+  unfold packetLaw
+  apply div_nonneg
+  · apply Finset.prod_nonneg
+    intro j _
+    exact src.hw_nonneg _
+  · apply pow_nonneg
+    apply Finset.sum_nonneg
+    intro i _
+    exact src.hw_nonneg i
+
+/-- Paper (136): root identity. `pathMass` at the empty path equals the total
+surviving packet mass.
+
+`W_{r*} = ∑_γ u_γ = N_{I,k}`: the root's load is the sum over all histories,
+which is the total retained mass. For `pathMass`, the empty path is followed
+by every packet (`List.IsChain _ []` is vacuous), so we sum over all surviving
+packets.
+-/
+theorem pathMass_root {α : Type} [Fintype α] [DecidableEq α]
+    {n r : ℕ} (src : PacketSource α n r) :
+    pathMass src [] = ∑ U ∈ src.retained.filter
+      (fun U => packetSurvives src.w src.delThresh U), packetLaw src.w U := by
+  unfold pathMass
+  congr 1
+  ext U
+  simp only [Finset.mem_filter]
+  constructor
+  · rintro ⟨hmem, hsurv, _⟩
+    exact ⟨hmem, hsurv⟩
+  · rintro ⟨hmem, hsurv⟩
+    refine ⟨hmem, hsurv, ?_⟩
+    unfold pathFollows
+    exact List.isChain_nil
+
 end FilteredDescent
