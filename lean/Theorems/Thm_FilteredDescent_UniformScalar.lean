@@ -168,10 +168,11 @@ The `tubeLoad` is the `termLoad` of the re-rooted subtree, so:
 - `geomRHS` matches the local `geom_pair` RHS at `x` (via `∑_t termLoad = totalLoad`).
 -/
 noncomputable def admGeomConfigOfSubtree {d : ℕ} {α : Type} [DecidableEq α] [Fintype α]
-    {δ : ℝ} (cfg : UniformScalarConfig d α δ) (x : List α) (hx : x ∈ cfg.T)
-    (hδ0 : 0 < δ) :
+    {δ₀ : ℝ} (cfg : UniformScalarConfig d α δ₀) (x : List α) (hx : x ∈ cfg.T)
+    (δ : ℝ) (hδ0 : 0 < δ) :
     AdmissibleGeomConfig d δ where
-  phys := cfg.phys
+  -- Reuse n, family, shading from cfg.phys (δ-independent); hpos works for all δ'
+  phys := ⟨cfg.phys.n, cfg.phys.family, cfg.phys.shading, cfg.phys.hpos⟩
   tubeLoad := fun t δ' => termLoad (reroot cfg.T x)
     (fun s => cfg.termTube (x ++ s)) (fun s δ'' => cfg.load (x ++ s) δ'') t δ'
   tubeLoad_nonneg := by
@@ -182,6 +183,56 @@ noncomputable def admGeomConfigOfSubtree {d : ℕ} {α : Type} [DecidableEq α] 
     have hγmem : γ ∈ treeLeaves (reroot cfg.T x) := (Finset.mem_filter.mp hγ).1
     have hlift : x ++ γ ∈ treeLeaves cfg.T := reroot_leaf_lift cfg.T x hγmem
     exact cfg.hload (x ++ γ) hlift δ' hδ'0 hδ'1
+
+/-- Derive a local `SubpowerLE` pair bound from the uniform geometric input.
+
+Given `hU.geom : UniformGeomInput d`, `cfg`, `x ∈ cfg.T`, and `ε > 0`,
+produces a `SubpowerLE` for the re-rooted subtree at `x` with the UNIFORM
+constant `C_geom` (not depending on `cfg` or `x`).
+
+This is the key threading step for P0-2: the per-subtree geometric input
+is derived from the global uniform hypothesis, not assumed per-config.
+-/
+theorem uniformGeomPair_to_local {d : ℕ} {α : Type} [DecidableEq α] [Fintype α]
+    (hU : UniformDescentAssumptions d)
+    {δ₀ : ℝ} (cfg : UniformScalarConfig d α δ₀) (x : List α) (hx : x ∈ cfg.T) :
+    SubpowerLE
+      (fun δ => ∑ t : Fin cfg.phys.n, ∑ t' : Fin cfg.phys.n,
+        if t ≠ t' then termLoad (reroot cfg.T x) (fun s => cfg.termTube (x ++ s))
+          (fun s δ'' => cfg.load (x ++ s) δ'') t δ
+          * termLoad (reroot cfg.T x) (fun s => cfg.termTube (x ++ s))
+          (fun s δ'' => cfg.load (x ++ s) δ'') t' δ
+        else 0)
+      (fun δ => (physicalRealization cfg.phys.family cfg.phys.shading cfg.phys.hpos).unionVol δ *
+        totalLoad (reroot cfg.T x) (fun s δ'' => cfg.load (x ++ s) δ'') δ) := by
+  -- For each ε', obtain the UNIFORM C' from hU.geom (not depending on cfg/x)
+  intro ε' hε'
+  obtain ⟨C', hC', hbound'⟩ := hU.geom ε' hε'
+  refine ⟨C', hC', fun δ hδ0 hδ1 => ?_⟩
+  -- Build the AdmissibleGeomConfig for this subtree (at the varying δ)
+  -- and apply the uniform bound
+  have h := hbound' δ hδ0 hδ1 (admGeomConfigOfSubtree cfg x hx δ hδ0)
+  -- h : pairEnergy d δ (admGeomConfigOfSubtree ...) ≤ C' * δ^{-ε'} * geomRHS ...
+  have hLHS : pairEnergy d δ (admGeomConfigOfSubtree cfg x hx δ hδ0) =
+      ∑ t : Fin cfg.phys.n, ∑ t' : Fin cfg.phys.n,
+        if t ≠ t' then termLoad (reroot cfg.T x) (fun s => cfg.termTube (x ++ s))
+          (fun s δ'' => cfg.load (x ++ s) δ'') t δ
+          * termLoad (reroot cfg.T x) (fun s => cfg.termTube (x ++ s))
+          (fun s δ'' => cfg.load (x ++ s) δ'') t' δ
+        else 0 := by
+    unfold pairEnergy admGeomConfigOfSubtree
+    rfl
+  have hRHS : geomRHS d δ (admGeomConfigOfSubtree cfg x hx δ hδ0) =
+      (physicalRealization cfg.phys.family cfg.phys.shading cfg.phys.hpos).unionVol δ *
+        totalLoad (reroot cfg.T x) (fun s δ'' => cfg.load (x ++ s) δ'') δ := by
+    unfold geomRHS admGeomConfigOfSubtree
+    simp only
+    congr 1
+    -- ∑ t, termLoad t δ = totalLoad by totalLoad_eq_sum_termLoad
+    exact (totalLoad_eq_sum_termLoad (reroot cfg.T x)
+      (fun s => cfg.termTube (x ++ s)) (fun s δ'' => cfg.load (x ++ s) δ'') δ).symm
+  rw [hLHS, hRHS] at h
+  exact h
 
 /-- The authoritative uniform scalar closure (TODO_GUIDANCE item 9).
 
