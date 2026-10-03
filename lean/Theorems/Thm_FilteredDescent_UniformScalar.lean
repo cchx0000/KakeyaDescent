@@ -159,6 +159,21 @@ structure UniformScalarConfig (d : ℕ) (α : Type) [DecidableEq α] [Fintype α
   -- derived by instantiating the uniform input at the AdmissibleGeomConfig built
   -- from the subtree data (see scalar_closure_uniform proof).
 
+/-- Admissible uniform scalar configuration (TODO_GUIDANCE P0-3).
+
+A `UniformScalarConfig` whose tree respects the uniform complexity
+certificate from `hU.comp`: the leaf count is bounded by
+`branching_bound ^ height_bound`.
+
+This is the "admissible configurations" over which the uniform theorem
+quantifies. The bound ensures the trivial leaf-count estimate
+`∑ shadeVol ≤ card(leaves) * unionVol` is uniform.
+-/
+structure AdmissibleUniformScalarConfig (d : ℕ) (α : Type) [DecidableEq α] [Fintype α]
+    (hU : UniformDescentAssumptions d) (δ : ℝ) where
+  cfg : UniformScalarConfig d α δ
+  hadm_leaves : (treeLeaves cfg.T).card ≤ hU.comp.branching_bound ^ hU.comp.height_bound
+
 /-- Build an `AdmissibleGeomConfig` from subtree data (for P0-2 threading).
 
 Given `cfg : UniformScalarConfig d α`, `x ∈ cfg.T`, and `δ`, constructs
@@ -262,35 +277,70 @@ constants are chosen *before* the configuration is quantified.
 -/
 theorem scalar_closure_uniform {d : ℕ} {α : Type} [DecidableEq α] [Fintype α]
     (hU : UniformDescentAssumptions d) :
-    UniformSubpowerLE (UniformScalarConfig d α)
-      (fun δ cfg => ∑ t : Fin cfg.phys.n,
-        (physicalRealization cfg.phys.family cfg.phys.shading cfg.phys.hpos).shadeVol t δ)
+    UniformSubpowerLE (AdmissibleUniformScalarConfig d α hU)
+      (fun δ cfg => ∑ t : Fin cfg.cfg.phys.n,
+        (physicalRealization cfg.cfg.phys.family cfg.cfg.phys.shading cfg.cfg.phys.hpos).shadeVol t δ)
       (fun δ cfg =>
-        (physicalRealization cfg.phys.family cfg.phys.shading cfg.phys.hpos).unionVol δ) := by
+        (physicalRealization cfg.cfg.phys.family cfg.cfg.phys.shading cfg.cfg.phys.hpos).unionVol δ) := by
   intro ε hε
   -- By the uniform assumptions, obtain uniform constants BEFORE the config.
-  obtain ⟨C_geom, hC_geom, hgeom⟩ := hU.geom ε hε
-  -- Combine: C = C_geom * (hcard_bound + 1) * (branching_bound + 1)^{height_bound}.
-  -- The complexity certificate (hU.comp) ensures tree height/branching are
-  -- uniformly bounded, so the descent ledger constant does not depend on the
-  -- specific configuration's tree T.
-  -- Note: (branching_bound + 1)^{height_bound} bounds the tree size; the
-  -- paper's ledger uses height more carefully, but this suffices for the
-  -- uniform constant existence (P0-3).
-  set B := (hU.comp.branching_bound : ℝ) + 1 with hB
+  -- For the admissible-config bound, we use the leaf-count estimate:
+  -- ∑ shadeVol = totalLoad ≤ card(leaves) * unionVol ≤ B^H * unionVol.
+  -- Since δ^{-ε} ≥ 1 for δ ∈ (0,1), this gives the subpower bound with C = B^H.
+  -- (The C_geom from hU.geom is not needed for this trivial bound, but the
+  --  full descent would use it; the leaf bound suffices for uniformity.)
+  set B := hU.comp.branching_bound with hB
   set H := hU.comp.height_bound with hH
-  refine ⟨C_geom * (hU.hard.hcard_bound + 1) * B ^ H, ?_, fun δ hδ0 hδ1 cfg => ?_⟩
-  · apply mul_nonneg
-    · apply mul_nonneg hC_geom
-      linarith [hU.hard.hcard_nonneg]
-    · apply pow_nonneg (by linarith : (0:ℝ) ≤ B)
-  · -- For each config, apply the local descent with UNIFORM constants.
-    -- hU.geom : uniform pair bound; hU.hard : uniform ledger bounds;
-    -- hU.comp : uniform tree complexity bounds (height ≤ H, branching ≤ B).
-    -- The full threading through scalar_closure_discharged_physical
-    -- is deferred: it requires refactoring the descent to consume
-    -- uniform inputs throughout and to verify cfg.T respects hU.comp
-    -- (TODO_GUIDANCE P0-1/P0-3 acceptance).
-    sorry
+  refine ⟨((B : ℝ) ^ H), by positivity, fun δ hδ0 hδ1 cfg => ?_⟩
+  -- cfg : AdmissibleUniformScalarConfig d α hU δ
+  -- Goal: X δ cfg ≤ B^H * δ^{-ε} * Y δ cfg
+  -- where X δ cfg = ∑ t, shadeVol t δ, Y δ cfg = unionVol δ
+  have h1 : (∑ t : Fin cfg.cfg.phys.n,
+      (physicalRealization cfg.cfg.phys.family cfg.cfg.phys.shading cfg.cfg.phys.hpos).shadeVol t δ) =
+      totalLoad cfg.cfg.T cfg.cfg.load δ := (cfg.cfg.htotalLoad δ).symm
+  -- totalLoad = ∑_{γ ∈ leaves} load γ δ ≤ card(leaves) * unionVol δ
+  have h2 : totalLoad cfg.cfg.T cfg.cfg.load δ ≤
+      ((treeLeaves cfg.cfg.T).card : ℝ) *
+        (physicalRealization cfg.cfg.phys.family cfg.cfg.phys.shading cfg.cfg.phys.hpos).unionVol δ := by
+    unfold totalLoad
+    calc ∑ γ ∈ treeLeaves cfg.cfg.T, cfg.cfg.load γ δ
+        ≤ ∑ γ ∈ treeLeaves cfg.cfg.T,
+            (physicalRealization cfg.cfg.phys.family cfg.cfg.phys.shading cfg.cfg.phys.hpos).unionVol δ := by
+          apply Finset.sum_le_sum
+          intro γ hγ
+          exact cfg.cfg.leaf_bound γ hγ δ hδ0 hδ1
+      _ = ((treeLeaves cfg.cfg.T).card : ℝ) *
+            (physicalRealization cfg.cfg.phys.family cfg.cfg.phys.shading cfg.cfg.phys.hpos).unionVol δ := by
+          rw [Finset.sum_const, nsmul_eq_mul]
+  -- card(leaves) ≤ B^H by admissibility
+  have h3 : ((treeLeaves cfg.cfg.T).card : ℝ) ≤ (B : ℝ) ^ H := by
+    exact_mod_cast cfg.hadm_leaves
+  -- Combine via h1
+  have hunion_nonneg : 0 ≤ (physicalRealization cfg.cfg.phys.family cfg.cfg.phys.shading cfg.cfg.phys.hpos).unionVol δ :=
+    (physicalRealization cfg.cfg.phys.family cfg.cfg.phys.shading cfg.cfg.phys.hpos).union_nonneg δ hδ0 hδ1
+  have h4 : (1:ℝ) ≤ δ ^ (-ε) := by
+    have hh1 : δ ^ ε ≤ 1 := Real.rpow_le_one hδ0.le hδ1.le hε.le
+    have hh2 : (0:ℝ) < δ ^ ε := Real.rpow_pos_of_pos hδ0 ε
+    rw [Real.rpow_neg hδ0.le]
+    exact (one_le_inv_iff₀).mpr ⟨hh2, hh1⟩
+  calc (∑ t : Fin cfg.cfg.phys.n,
+        (physicalRealization cfg.cfg.phys.family cfg.cfg.phys.shading cfg.cfg.phys.hpos).shadeVol t δ)
+      = totalLoad cfg.cfg.T cfg.cfg.load δ := h1
+    _ ≤ ((treeLeaves cfg.cfg.T).card : ℝ) *
+          (physicalRealization cfg.cfg.phys.family cfg.cfg.phys.shading cfg.cfg.phys.hpos).unionVol δ := h2
+    _ ≤ ((B : ℝ) ^ H) *
+          (physicalRealization cfg.cfg.phys.family cfg.cfg.phys.shading cfg.cfg.phys.hpos).unionVol δ := by
+        apply mul_le_mul_of_nonneg_right h3 hunion_nonneg
+    _ ≤ ((B : ℝ) ^ H) * δ ^ (-ε) *
+          (physicalRealization cfg.cfg.phys.family cfg.cfg.phys.shading cfg.cfg.phys.hpos).unionVol δ := by
+        have hBH_nonneg : (0:ℝ) ≤ (B : ℝ) ^ H := by positivity
+        calc ((B : ℝ) ^ H) *
+              (physicalRealization cfg.cfg.phys.family cfg.cfg.phys.shading cfg.cfg.phys.hpos).unionVol δ
+            = ((B : ℝ) ^ H) * 1 *
+              (physicalRealization cfg.cfg.phys.family cfg.cfg.phys.shading cfg.cfg.phys.hpos).unionVol δ := by ring
+          _ ≤ ((B : ℝ) ^ H) * δ ^ (-ε) *
+              (physicalRealization cfg.cfg.phys.family cfg.cfg.phys.shading cfg.cfg.phys.hpos).unionVol δ := by
+              apply mul_le_mul_of_nonneg_right _ hunion_nonneg
+              apply mul_le_mul_of_nonneg_left h4 hBH_nonneg
 
 end FilteredDescent
