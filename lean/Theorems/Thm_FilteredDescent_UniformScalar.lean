@@ -406,6 +406,17 @@ theorem scalar_closure_uniform {d : ℕ}
     -- hU.comp : uniform subpower complexity (P0-2 new, to be formalized).
     -- The full threading through scalar_closure_discharged_physical
     -- is deferred (TODO_GUIDANCE P0-5).
+    --
+    -- P0-5 PROGRESS: Instantiate the uniform geometric input at the
+    -- config's physical data. Define the AdmissibleGeomConfig from
+    -- cfg.cfg.phys and apply hgeom to get the pair energy bound.
+    -- The remaining descent (via descent_bound, faithful_gate_discharged,
+    -- node_hardening_subpower) is deferred.
+    let cfg' : AdmissibleGeomConfig d δ := ⟨cfg.cfg.phys⟩
+    have hpair := hgeom δ hδ0 hδ1 cfg'
+    -- hpair : pairEnergy d δ cfg' ≤ C_geom * δ ^ (-ε) * geomRHS d δ cfg'
+    -- Unfold to get the explicit pair sum bound.
+    -- The full N² ≤ Bpred·N via descent is deferred.
     sorry
 
 end FilteredDescent
