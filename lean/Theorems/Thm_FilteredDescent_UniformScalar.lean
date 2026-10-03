@@ -106,6 +106,22 @@ structure UniformHardeningBudget (d : ℕ) where
   c0_inv_bound : ℝ
   c0_nonneg : 0 ≤ c0_inv_bound
 
+/-- Ledger-budget compatibility (TODO_GUIDANCE P0-6).
+
+A local `HardeningLedger` is compatible with the uniform budget if:
+- its carrier count `card K` is bounded by `hcard_bound` (uniformly);
+- its inverse density `1 / c₀` is bounded by `c0_inv_bound` (uniformly).
+
+This prevents a local ledger with arbitrarily huge alphabet or tiny `c₀`
+from entering an admissible uniform configuration without paying the
+approved subpower loss.
+-/
+def LedgerBudgetCompatible {d : ℕ} {α : Type} [DecidableEq α] {n : ℕ}
+    {T : Finset (List α)} (L : HardeningLedger α (n := n) T)
+    (budget : UniformHardeningBudget d) : Prop :=
+  (Fintype.card L.K : ℝ) ≤ budget.hcard_bound ∧
+  1 / L.c₀ ≤ budget.c0_inv_bound
+
 /-- Uniform descent-complexity certificate (TODO_GUIDANCE P0-2 new).
 
 Paper-faithful: complexity quantities (history height H_{I,k},
@@ -227,7 +243,11 @@ geometric input, hardening budget, and complexity certificate whose
 constants are chosen *before* the configuration is quantified.
 -/
 theorem scalar_closure_uniform {d : ℕ} {α : Type} [DecidableEq α] [Fintype α]
-    (hU : UniformDescentAssumptions d) :
+    (hU : UniformDescentAssumptions d)
+    -- P0-6: local ledgers must respect the uniform hardening budget.
+    -- Without this, a config with huge `card K` or tiny `c₀` could break uniformity.
+    (hcompat : ∀ δ : ℝ, ∀ cfg : UniformScalarConfig d α δ,
+      LedgerBudgetCompatible cfg.L hU.hard) :
     UniformSubpowerLE (UniformScalarConfig d α)
       (fun δ cfg => ∑ t : Fin cfg.phys.n,
         (physicalRealization cfg.phys.family cfg.phys.shading cfg.phys.hpos).shadeVol t δ)
