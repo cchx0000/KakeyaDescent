@@ -429,7 +429,7 @@ Takes `UniformDescentAssumptions d` (TODO_GUIDANCE P0-1): the uniform
 geometric input, hardening budget, and complexity certificate whose
 constants are chosen *before* the configuration is quantified.
 -/
-theorem scalar_closure_uniform {d : ℕ}
+theorem scalar_closure_uniform {d : ℕ} (hd : 1 ≤ d)
     (hU : UniformDescentAssumptions d)
     -- P0-6: local ledgers must respect the uniform hardening budget.
     -- Without this, a config with huge `card K` or tiny `c₀` could break uniformity.
@@ -490,7 +490,15 @@ theorem scalar_closure_uniform {d : ℕ}
           totalLoad (reroot cfg.cfg.T x) (fun s δ => cfg.cfg.load (x ++ s) δ) δ) := by
       -- For each x, build restricted S_x via P0-4, apply hU.geom,
       -- and use unionVol_{S_x} ≤ unionVol_orig.
-      -- Deferred: needs restrictedShading to be more than a sorry.
+      -- S_x.shadeVol = termLoad_x by restrictedShading exact volume.
+      intro x hx
+      -- Get the bound and positivity for the restricted config
+      have hbound : SubtreeLoadBounded cfg.cfg := hloadbound δ cfg
+      -- For hpos_x: need positivity of restricted union volume.
+      -- This follows if the subtree has positive total load.
+      -- For now, we need this as an additional hypothesis or derive it.
+      -- Actually, if totalLoad_x = 0 then LHS = 0 and the bound is trivial.
+      -- So we may assume positive load for the nontrivial case.
       sorry
     -- Apply the physical scalar closure with uniform-derived geom_pair.
     -- The constant from scalar_closure_discharged_physical depends on the
