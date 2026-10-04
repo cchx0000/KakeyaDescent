@@ -281,7 +281,7 @@ Only then can the restricted shading `Y_x` be constructed with
 -- there is a measurable S' ⊆ S with (volume S').toReal = v.
 -- Proof: trivial cases v=0 (take ∅) and v=V (take S).
 -- For 0 < v < V, use hyperplane slicing and IVT.
-theorem exists_subset_volume {d : ℕ}
+theorem exists_subset_volume {d : ℕ} (hd : 1 ≤ d)
     (S : Set (EuclideanSpace ℝ (Fin d))) (hS : MeasurableSet S)
     (V : ℝ) (hV : (MeasureTheory.volume S).toReal = V)
     (v : ℝ) (hv0 : 0 ≤ v) (hvV : v ≤ V) :
@@ -294,48 +294,8 @@ theorem exists_subset_volume {d : ℕ}
   -- Now 0 < v < V
   have hvp : 0 < v := lt_of_le_of_ne hv0 (Ne.symm hne0)
   have hvV' : v < V := lt_of_le_of_ne hvV hneV
-  -- d ≥ 1: in d=0, the space is a singleton, so no strict intermediate volumes
-  have hd1 : 1 ≤ d := by
-    by_contra h
-    push_neg at h
-    interval_cases d
-    -- d = 0: EuclideanSpace ℝ (Fin 0) ≃ Unit, measurable sets are ∅ or univ
-    -- volume ∅ = 0, volume univ = c (some constant)
-    -- Since 0 < v < V = (volume S).toReal, S must be univ and 0 < v < c
-    -- But any measurable S' ⊆ S is ∅ or univ, so (volume S').toReal ∈ {0, c}
-    -- Cannot equal v with 0 < v < c. Contradiction.
-    -- Formalize: the σ-algebra on a singleton is {∅, univ}
-    have hS' : S = ∅ ∨ S = Set.univ := by
-      -- In a subsingleton measurable space, every set is ∅ or univ
-      -- (since sets are determined by whether they contain the unique point)
-      by_cases hSe : S = ∅
-      · exact Or.inl hSe
-      · right
-        ext x
-        simp only [Set.mem_univ, iff_true]
-        -- x ∈ S: since S nonempty and subsingleton
-        have hne : S.Nonempty := Set.nonempty_iff_ne_empty.mpr hSe
-        obtain ⟨y, hy⟩ := hne
-        have hxy : x = y := Subsingleton.elim x y
-        rw [hxy]; exact hy
-    rcases hS' with rfl | rfl
-    · -- S = ∅: then V = 0, contradicting 0 < v ≤ V
-      simp at hV
-      linarith
-    · -- S = univ: then every measurable S' ⊆ S has volume 0 or (volume univ).toReal
-      -- We need to show no such S' has volume v with 0 < v < V.
-      -- This requires knowing the measurable sets in the singleton case.
-      -- For now, derive contradiction from the fact that v is strictly between.
-      -- Actually, in the singleton case, (volume univ).toReal is some value c.
-      -- If S' = ∅, volume = 0 ≠ v (since 0 < v).
-      -- If S' = univ, volume = c = V ≠ v (since v < V).
-      -- So no such S' exists, but we need to prove this from the hypotheses.
-      -- The key: any S' ⊆ univ is ∅ or univ (in the singleton measurable space).
-      -- This is getting into the details of the singleton σ-algebra.
-      -- For the Kakeya application, d ≥ 2 anyway, so we can admit this edge.
-      sorry
-  -- Now d ≥ 1 (k = ⟨0, hd1⟩ : Fin d).
-  -- Define f(t) = (volume (S ∩ {x | x k ≤ t})).toReal.
+  -- Now 0 < v < V and d ≥ 1 (hd). Use hyperplane slicing + IVT.
+  -- Define f(t) = (volume (S ∩ {x | x k ≤ t})).toReal for k = ⟨0, hd⟩.
   -- f monotone, continuous (hyperplanes null via Fubini),
   -- lim atBot = 0, lim atTop = V. IVT gives t₀ with f(t₀) = v.
   -- Take S' = S ∩ {x | x k ≤ t₀}. Details deferred.
@@ -383,7 +343,7 @@ source-derived `load` (via `pathMass`) satisfies
 -- Via exists_subset_volume: for each (t, δ'), pick Y_x(t,δ') ⊆ Y(t,δ')
 -- with volume = subtreeTermLoad. Needs 0 ≤ termLoad (from termLoad_nonneg)
 -- and termLoad ≤ shadeVol (hbound).
-noncomputable def restrictedShading {d : ℕ} {α : Type} [DecidableEq α] [Fintype α]
+noncomputable def restrictedShading {d : ℕ} (hd : 1 ≤ d) {α : Type} [DecidableEq α] [Fintype α]
     {δ₀ : ℝ} (cfg : UniformScalarConfig d α δ₀) (x : List α) (hx : x ∈ cfg.T)
     (hbound : ∀ t δ', 0 < δ' → δ' < 1 →
       subtreeTermLoad cfg x t δ' ≤
@@ -396,7 +356,7 @@ noncomputable def restrictedShading {d : ℕ} {α : Type} [DecidableEq α] [Fint
         MeasurableSet S' ∧ S' ⊆ cfg.phys.shading.Y t δ' ∧
         (MeasureTheory.volume S').toReal = subtreeTermLoad cfg x t δ' := by
     intro t δ' hδ0 hδ1
-    apply exists_subset_volume
+    apply exists_subset_volume hd
     · exact cfg.phys.shading.measurable t δ' hδ0 hδ1
     · rfl
     · -- 0 ≤ subtreeTermLoad: via termLoad_nonneg
