@@ -302,16 +302,8 @@ theorem exists_subset_volume {d : ℕ} (hd : 1 ≤ d)
   sorry
 
 
-noncomputable def admGeomConfigOfSubtree {d : ℕ} {α : Type} [DecidableEq α] [Fintype α]
-    {δ₀ : ℝ} (cfg : UniformScalarConfig d α δ₀) (x : List α) (hx : x ∈ cfg.T)
-    (δ : ℝ) (hδ0 : 0 < δ) :
-    AdmissibleGeomConfig d δ where
-  -- P0-4: Currently reuses cfg.phys. The full version takes
-  -- (hbound : SubtreeLoadBounded cfg) and uses
-  --   restrictedShading cfg x hx hbound
-  -- to build the restricted source S_x. The hbound hypothesis is now
-  -- available via the theorem's hloadbound (P0-4c).
-  phys := ⟨cfg.phys.n, cfg.phys.family, cfg.phys.shading, cfg.phys.hpos⟩
+-- NOTE: admGeomConfigOfSubtree is defined after restrictedShading (below),
+-- since it uses the restricted shading to build S_x.
 
 /-- Subtree terminal tube load (P0-4).
 
@@ -384,6 +376,27 @@ noncomputable def restrictedShading {d : ℕ} (hd : 1 ≤ d) {α : Type} [Decida
     rw [dif_pos hcond]
     exact Set.Subset.trans (hYx_sub t δ hδ0 hδ1)
       (cfg.phys.shading.subset_tube t δ hδ0 hδ1)
+
+/-- Restricted geometric config for subtree `x` (P0-4).
+
+Builds the `AdmissibleGeomConfig` S_x using the restricted shading,
+so that `S_x.shadeVol t δ' = subtreeTermLoad cfg x t δ'`.
+
+Requires `hpos_x`: the restricted shading has positive union volume
+(i.e., the subtree carries positive load). If the subtree has zero load,
+the pair bound is trivial (0 ≤ ...).
+-/
+noncomputable def admGeomConfigOfSubtree {d : ℕ} (hd : 1 ≤ d) {α : Type} [DecidableEq α] [Fintype α]
+    {δ₀ : ℝ} (cfg : UniformScalarConfig d α δ₀) (x : List α) (hx : x ∈ cfg.T)
+    (hbound : SubtreeLoadBounded cfg)
+    (hpos_x : ∀ δ', 0 < δ' → δ' < 1 →
+      0 < (MeasureTheory.volume (⋃ t, (restrictedShading hd cfg x hx
+        (fun t δ' h0 h1 => hbound x hx t δ' h0 h1)).Y t δ')).toReal)
+    (δ : ℝ) (hδ0 : 0 < δ) :
+    AdmissibleGeomConfig d δ where
+  phys := ⟨cfg.phys.n, cfg.phys.family,
+    restrictedShading hd cfg x hx (fun t δ' h0 h1 => hbound x hx t δ' h0 h1),
+    hpos_x⟩
 
 -- uninhabited issue by deriving the load from the source. The correct P0-4
 -- construction builds a RESTRICTED physical source `S_x` for each subtree `x`,
