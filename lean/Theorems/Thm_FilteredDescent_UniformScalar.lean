@@ -492,14 +492,33 @@ theorem scalar_closure_uniform {d : ℕ} (hd : 1 ≤ d)
       -- and use unionVol_{S_x} ≤ unionVol_orig.
       -- S_x.shadeVol = termLoad_x by restrictedShading exact volume.
       intro x hx
-      -- Get the bound and positivity for the restricted config
+      -- Get the bound for the restricted config
       have hbound : SubtreeLoadBounded cfg.cfg := hloadbound δ cfg
-      -- For hpos_x: need positivity of restricted union volume.
-      -- This follows if the subtree has positive total load.
-      -- For now, we need this as an additional hypothesis or derive it.
-      -- Actually, if totalLoad_x = 0 then LHS = 0 and the bound is trivial.
-      -- So we may assume positive load for the nontrivial case.
-      sorry
+      -- Unfold SubpowerLE: need ∀ ε>0, ∃ C≥0, ∀ δ'∈(0,1),
+      --   LHS δ' ≤ C * δ'^(-ε) * RHS δ'
+      intro ε hε
+      -- Use C_geom from the uniform geometric input
+      refine ⟨C_geom, hC_geom, fun δ' hδ0' hδ1' => ?_⟩
+      -- For this δ', consider two cases:
+      -- Case 1: totalLoad_x δ' = 0 → LHS = 0 → inequality holds trivially
+      -- Case 2: totalLoad_x δ' > 0 → build S_x and apply hgeom
+      by_cases hzero : totalLoad (reroot cfg.cfg.T x) (fun s δ => cfg.cfg.load (x ++ s) δ) δ' = 0
+      · -- Case 1: LHS = 0
+        -- Each termLoad_x t δ' = 0 (since sum is 0 and terms are nonneg)
+        -- So LHS = ∑ t t', ... = 0
+        sorry
+      · -- Case 2: positive load → build S_x
+        -- Need hpos_x: union volume of restricted shading is positive.
+        -- Since totalLoad_x > 0, ∃ t with termLoad_x t δ' > 0,
+        -- so volume(Y_x t δ') > 0, so union volume > 0.
+        have hpos_x : 0 < (MeasureTheory.volume (⋃ t, (restrictedShading hd cfg.cfg x hx
+            (fun t δ'' h0 h1 => hbound x hx t δ'' h0 h1)).Y t δ')).toReal := by
+          sorry
+        -- Build S_x
+        -- Note: admGeomConfigOfSubtree needs hpos_x for ALL δ'', but we only have it for δ'.
+        -- For the SubpowerLE at this specific δ', we need S_x at δ'.
+        -- This is a gap: the current admGeomConfigOfSubtree requires uniform positivity.
+        sorry
     -- Apply the physical scalar closure with uniform-derived geom_pair.
     -- The constant from scalar_closure_discharged_physical depends on the
     -- config; we need to show it's bounded uniformly via hU.hard.
