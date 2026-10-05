@@ -503,10 +503,67 @@ theorem scalar_closure_uniform {d : ℕ} (hd : 1 ≤ d)
       -- Case 1: totalLoad_x δ' = 0 → LHS = 0 → inequality holds trivially
       -- Case 2: totalLoad_x δ' > 0 → build S_x and apply hgeom
       by_cases hzero : totalLoad (reroot cfg.cfg.T x) (fun s δ => cfg.cfg.load (x ++ s) δ) δ' = 0
-      · -- Case 1: LHS = 0
-        -- Each termLoad_x t δ' = 0 (since sum is 0 and terms are nonneg)
-        -- So LHS = ∑ t t', ... = 0
-        sorry
+      · -- Case 1: LHS = 0, so LHS ≤ C * δ'^(-ε) * RHS holds since RHS ≥ 0
+        -- totalLoad = ∑ γ ∈ leaves, load γ δ' = 0, each load ≥ 0 → each = 0
+        -- → each termLoad t δ' = 0 → LHS = 0
+        have hload_zero : ∀ γ ∈ treeLeaves (reroot cfg.cfg.T x),
+            (fun s δ => cfg.cfg.load (x ++ s) δ) γ δ' = 0 := by
+          intro γ hγ
+          have hnn : ∀ γ' ∈ treeLeaves (reroot cfg.cfg.T x), 0 ≤
+              (fun s δ => cfg.cfg.load (x ++ s) δ) γ' δ' := by
+            intro γ' hγ'
+            have hmem : x ++ γ' ∈ treeLeaves cfg.cfg.T :=
+              reroot_leaf_lift cfg.cfg.T x hγ'
+            have := cfg.cfg.hload (x ++ γ') hmem δ' hδ0' hδ1'
+            simpa using this
+          have hsum : ∑ γ' ∈ treeLeaves (reroot cfg.cfg.T x),
+              (fun s δ => cfg.cfg.load (x ++ s) δ) γ' δ' = 0 := hzero
+          exact (Finset.sum_eq_zero_iff_of_nonneg (fun γ' h => hnn γ' h)).mp hsum γ hγ
+        have hterm_zero : ∀ t : Fin cfg.cfg.phys.n,
+            termLoad (reroot cfg.cfg.T x) (fun s => cfg.cfg.termTube (x ++ s))
+              (fun s δ => cfg.cfg.load (x ++ s) δ) t δ' = 0 := by
+          intro t
+          unfold termLoad
+          apply Finset.sum_eq_zero
+          intro γ hγ
+          rw [Finset.mem_filter] at hγ
+          exact hload_zero γ hγ.1
+        -- LHS = 0
+        have hLHS_zero : (∑ t : Fin cfg.cfg.phys.n, ∑ t' : Fin cfg.cfg.phys.n,
+            if t ≠ t' then termLoad (reroot cfg.cfg.T x) (fun s => cfg.cfg.termTube (x ++ s))
+              (fun s δ => cfg.cfg.load (x ++ s) δ) t δ'
+              * termLoad (reroot cfg.cfg.T x) (fun s => cfg.cfg.termTube (x ++ s))
+              (fun s δ => cfg.cfg.load (x ++ s) δ) t' δ'
+            else 0) = 0 := by
+          apply Finset.sum_eq_zero
+          intro t _
+          apply Finset.sum_eq_zero
+          intro t' _
+          split_ifs with h
+          · rw [hterm_zero t, hterm_zero t']
+            ring
+          · rfl
+        -- Goal is LHS δ' ≤ C * δ'^(-ε) * RHS δ'; rewrite LHS to 0
+        -- The goal's LHS function applied at δ' — need to show via hLHS_zero
+        have hgoal : (fun δ => ∑ t : Fin cfg.cfg.phys.n, ∑ t' : Fin cfg.cfg.phys.n,
+            if t ≠ t' then termLoad (reroot cfg.cfg.T x) (fun s => cfg.cfg.termTube (x ++ s))
+              (fun s δ => cfg.cfg.load (x ++ s) δ) t δ
+              * termLoad (reroot cfg.cfg.T x) (fun s => cfg.cfg.termTube (x ++ s))
+              (fun s δ => cfg.cfg.load (x ++ s) δ) t' δ
+            else 0) δ' = 0 := hLHS_zero
+        rw [hgoal]
+        -- 0 ≤ C * δ'^(-ε) * RHS
+        apply mul_nonneg
+        apply mul_nonneg hC_geom
+        · exact Real.rpow_nonneg (le_of_lt hδ0') (-ε)
+        · -- RHS = unionVol * totalLoad = unionVol * 0 = 0
+          have hRHS : (fun δ => (physicalRealization cfg.cfg.phys.family cfg.cfg.phys.shading cfg.cfg.phys.hpos).unionVol δ *
+            totalLoad (reroot cfg.cfg.T x) (fun s δ => cfg.cfg.load (x ++ s) δ) δ) δ'
+            = 0 := by
+            simp only
+            rw [hzero]
+            ring
+          rw [hRHS]
       · -- Case 2: positive load → build S_x
         -- Need hpos_x: union volume of restricted shading is positive.
         -- Since totalLoad_x > 0, ∃ t with termLoad_x t δ' > 0,
