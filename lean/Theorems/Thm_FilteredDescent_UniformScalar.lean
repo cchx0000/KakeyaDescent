@@ -583,10 +583,28 @@ theorem scalar_closure_uniform {d : ℕ} (hd : 1 ≤ d)
           rw [hRHS]
       · -- Case 2: positive load → build S_x
         -- Need hpos_x: union volume of restricted shading is positive.
-        -- Since totalLoad_x > 0, ∃ t with termLoad_x t δ' > 0,
-        -- so volume(Y_x t δ') > 0, so union volume > 0.
+        -- Since totalLoad_x δ' > 0, ∃ t with termLoad_x t δ' > 0.
+        -- By restrictedShading_vol, volume(Y_x t δ') = termLoad_x t δ' > 0.
+        -- Then volume(⋃ t', Y_x t' δ') ≥ volume(Y_x t δ') > 0.
         have hpos_x : 0 < (MeasureTheory.volume (⋃ t, (restrictedShading hd cfg.cfg x hx
             (fun t δ'' h0 h1 => hbound x hx t δ'' h0 h1)).Y t δ')).toReal := by
+          -- totalLoad_x δ' > 0 (since ≠ 0 and ≥ 0)
+          have hpos_total : 0 < totalLoad (reroot cfg.cfg.T x)
+              (fun s δ => cfg.cfg.load (x ++ s) δ) δ' := by
+            have hnn : 0 ≤ totalLoad (reroot cfg.cfg.T x)
+                (fun s δ => cfg.cfg.load (x ++ s) δ) δ' := by
+              unfold totalLoad
+              apply Finset.sum_nonneg
+              intro γ hγ
+              have hmem : x ++ γ ∈ treeLeaves cfg.cfg.T :=
+                reroot_leaf_lift cfg.cfg.T x hγ
+              have := cfg.cfg.hload (x ++ γ) hmem δ' hδ0' hδ1'
+              simpa using this
+            exact lt_of_le_of_ne hnn (Ne.symm hzero)
+          -- ∃ t, 0 < termLoad_x t δ'
+          -- totalLoad = ∑ t, termLoad_x t (via partition of leaves by tube)
+          -- If all termLoad_x t δ' ≤ 0, then totalLoad ≤ 0, contradiction.
+          -- Actually need: ∑ t, termLoad_x t δ' = totalLoad_x δ'
           sorry
         -- Build S_x
         -- Note: admGeomConfigOfSubtree needs hpos_x for ALL δ'', but we only have it for δ'.
