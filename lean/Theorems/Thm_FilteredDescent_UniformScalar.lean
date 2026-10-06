@@ -377,6 +377,23 @@ noncomputable def restrictedShading {d : ℕ} (hd : 1 ≤ d) {α : Type} [Decida
     exact Set.Subset.trans (hYx_sub t δ hδ0 hδ1)
       (cfg.phys.shading.subset_tube t δ hδ0 hδ1)
 
+/-- Volume of the restricted shading equals the subtree terminal load.
+
+For `0 < δ' < 1`, `volume (Y_x t δ') = subtreeTermLoad cfg x t δ'`.
+This is the exact volume identity from `exists_subset_volume` via choice.
+-/
+theorem restrictedShading_vol {d : ℕ} (hd : 1 ≤ d) {α : Type} [DecidableEq α] [Fintype α]
+    {δ₀ : ℝ} (cfg : UniformScalarConfig d α δ₀) (x : List α) (hx : x ∈ cfg.T)
+    (hbound : ∀ t δ', 0 < δ' → δ' < 1 →
+      subtreeTermLoad cfg x t δ' ≤
+        (MeasureTheory.volume (cfg.phys.shading.Y t δ')).toReal)
+    (t : Fin cfg.phys.n) (δ' : ℝ) (hδ0 : 0 < δ') (hδ1 : δ' < 1) :
+    (MeasureTheory.volume ((restrictedShading hd cfg x hx hbound).Y t δ')).toReal =
+      subtreeTermLoad cfg x t δ' := by
+  -- Unfold restrictedShading; the Y is defined via dif_pos with the chosen Yx
+  -- whose volume equals subtreeTermLoad by hYx_vol.
+  sorry
+
 /-- Restricted geometric config for subtree `x` (P0-4).
 
 Builds the `AdmissibleGeomConfig` S_x using the restricted shading,
